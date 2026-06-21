@@ -193,41 +193,62 @@ echo "GOOGLE_API_KEY=your_api_key_here" > .env
 # 4. Run the application
 streamlit run app.py
 
-Default Login Credentials
+### Default Login Credentials
 Username: admin
 Password: admin123
 
-🚀 Usage
-Login with admin credentials or register a new account
-Dashboard — view platform statistics and model performance
-Disease Prediction — enter patient clinical data → get AI diagnosis
-AI Explainability — understand which factors influenced the diagnosis
-Patient Management — register, search, edit, delete patients
-Appointments — book and manage doctor appointments
-Medication Suggestions — get AI-powered clinical recommendations
-Report Summarizer — upload PDF reports for AI analysis
+---
 
-📊 Datasets Used
-Dataset                      Source            Samples             Features
-PIMA Indians Diabetes        Kaggle/UCI        768                 8
-Heart Disease Cleveland      Kaggle/UCI        303                 13
+## 🚀 Usage
 
-🔮 Future Enhancements
-[] Medical image analysis (Chest X-ray CNN)
-[] Kidney disease prediction module
-[] Brain tumor detection from MRI
-[] Integration with HL7 FHIR standards
-[] Mobile app (React Native)
-[] Cloud deployment (AWS/GCP)
-[] Real-time patient monitoring dashboard
+1. Login with admin credentials or register a new account
+2. Dashboard — view platform statistics and model performance
+3. Disease Prediction — enter patient clinical data and get AI diagnosis
+4. AI Explainability — understand which factors influenced the diagnosis
+5. Patient Management — register, search, edit, delete patients
+6. Appointments — book and manage doctor appointments
+7. Medication Suggestions — get AI-powered clinical recommendations
+8. Report Summarizer — upload PDF reports for AI analysis
 
-👩‍💻 Author
-G. Ushapriya
-🎓 B.Tech ECE — Megha Institute of Engineering & Technology for Women
-💼 Seeking: AI/ML Engineer | Python Developer | Data Analyst
-🔗 LinkedIn
-💻 GitHub
-📧 ushapriya006@gmail.com
+---
 
-📄 License
+## 📊 Datasets Used
+
+| Dataset | Source | Samples | Features |
+|---|---|---|---|
+| PIMA Indians Diabetes | Kaggle/UCI | 768 | 8 |
+| Heart Disease Cleveland | Kaggle/UCI | 303 | 13 |
+
+---
+
+## 🔮 Future Enhancements
+
+- Medical image analysis — Chest X-ray CNN
+- Kidney disease prediction module
+- Brain tumor detection from MRI
+- Integration with HL7 FHIR standards
+- Mobile app React Native
+- Cloud deployment AWS/GCP
+- Real-time patient monitoring dashboard
+
+---
+
+## 👩‍💻 Author
+
+**G. Ushapriya**
+- B.Tech ECE — Megha Institute of Engineering and Technology for Women
+- Seeking: AI/ML Engineer | Python Developer | Data Analyst
+- LinkedIn: linkedin.com/in/usha-priya-3830072a9
+- GitHub: github.com/Ushapriya06
+- Email: ushapriya006@gmail.com
+
+---
+
+## 📄 License
+
 This project is licensed under the MIT License.
+
+---
+
+Built with ❤️ by G. Ushapriya | MediScan AI v2.0
+
