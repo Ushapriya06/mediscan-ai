@@ -220,6 +220,9 @@ from database import (get_dashboard_stats, add_patient, get_all_patients,
                       update_appointment_status)
 from models.diabetes import train_diabetes_model, predict_diabetes, explain_diabetes
 from models.heart import train_heart_model, predict_heart, explain_heart
+from models.kidney import train_kidney_model, predict_kidney, explain_kidney
+from models.liver import train_liver_model, predict_liver, explain_liver
+from models.parkinsons import train_parkinsons_model, predict_parkinsons, explain_parkinsons
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
@@ -236,9 +239,15 @@ if "models_trained" not in st.session_state:
         try:
             diabetes_acc = train_diabetes_model()
             heart_acc = train_heart_model()
+            kidney_acc = train_kidney_model()
+            liver_acc = train_liver_model()
+            parkinsons_acc = train_parkinsons_model()
             st.session_state.models_trained = True
             st.session_state.diabetes_acc = diabetes_acc
             st.session_state.heart_acc = heart_acc
+            st.session_state.kidney_acc = kidney_acc
+            st.session_state.liver_acc = liver_acc
+            st.session_state.parkinsons_acc = parkinsons_acc
         except Exception as e:
             st.error(f"Model error: {e}")
 
@@ -424,7 +433,7 @@ if page == "🏠  Dashboard":
                 AI Models
             </div>
             <div style='font-size:32px; font-weight:700;
-                        color:{text}; margin:8px 0'>2</div>
+                        color:{text}; margin:8px 0'>5</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -504,9 +513,12 @@ elif page == "🔬  Disease Prediction":
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs([
-        "🩸  Diabetes Assessment",
-        "❤️  Cardiac Assessment"
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🩸  Diabetes",
+        "❤️  Cardiac",
+        "🫘  Kidney",
+        "🩺  Liver",
+        "🧠  Parkinson's"
     ])
 
     # ── Diabetes Tab ───────────────────────────
@@ -819,6 +831,352 @@ elif page == "🔬  Disease Prediction":
                     </div>
                     """, unsafe_allow_html=True)
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Kidney Tab ─────────────────────────────
+    with tab3:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### Patient Clinical Data — Kidney Disease")
+        st.markdown("<br>", unsafe_allow_html=True)
+        patient_name_k = st.text_input("Patient Name (optional)", key="k_name")
+        col1, col2 = st.columns(2)
+        with col1:
+            age_k = st.number_input("Age", 1, 120, 40, key="k_age")
+            bp_k = st.number_input("Blood Pressure (mm/Hg)", 0, 200, 80, key="k_bp")
+            bgr_k = st.number_input("Blood Glucose Random (mgs/dl)", 0, 500, 120, key="k_bgr")
+            bu_k = st.number_input("Blood Urea (mgs/dl)", 0, 200, 30, key="k_bu")
+            sc_k = st.number_input("Serum Creatinine (mgs/dl)", 0.0, 20.0, 1.0, key="k_sc")
+            sod_k = st.number_input("Sodium (mEq/L)", 0, 200, 140, key="k_sod")
+        with col2:
+            pot_k = st.number_input("Potassium (mEq/L)", 0.0, 10.0, 4.0, key="k_pot")
+            hemo_k = st.number_input("Hemoglobin (gms)", 0.0, 20.0, 12.0, key="k_hemo")
+            pcv_k = st.number_input("Packed Cell Volume", 0, 60, 40, key="k_pcv")
+            wc_k = st.number_input("White Blood Cell Count (cells/cumm)", 0, 20000, 8000, key="k_wc")
+            rc_k = st.number_input("Red Blood Cell Count (millions/cmm)", 0.0, 10.0, 4.5, key="k_rc")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Run Kidney Analysis", use_container_width=True, key="run_kidney"):
+            with st.spinner("Processing..."):
+                result, confidence = predict_kidney([
+                    age_k, bp_k, bgr_k, bu_k, sc_k,
+                    sod_k, pot_k, hemo_k, pcv_k, wc_k, rc_k
+                ])
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("### 📊 Diagnosis Results")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    if result == "Positive":
+                        st.error("**Diagnosis: Chronic Kidney Disease Detected**")
+                        st.warning("Recommend immediate nephrologist consultation.")
+                    else:
+                        st.success("**Diagnosis: No Kidney Disease Detected**")
+                        st.info("Patient shows no significant kidney disease markers.")
+                with col2:
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=confidence,
+                        number={"suffix": "%"},
+                        title={"text": "Confidence", "font": {"size": 14}},
+                        gauge={
+                            "axis": {"range": [0, 100]},
+                            "bar": {"color": "#7B1FA2", "thickness": 0.3},
+                            "bgcolor": card_bg,
+                            "borderwidth": 0,
+                            "steps": [
+                                {"range": [0, 60], "color": "#F3E5F5"},
+                                {"range": [60, 80], "color": "#CE93D8"},
+                                {"range": [80, 100], "color": "#AB47BC"}
+                            ]
+                        }
+                    ))
+                    fig.update_layout(
+                        height=200,
+                        margin=dict(t=30, b=0, l=10, r=10),
+                        paper_bgcolor=card_bg,
+                        font=dict(family="Inter", color=text)
+                    )
+                    st.plotly_chart(fig, use_container_width=True, key="k_gauge")
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 🧠 AI Explainability")
+                sorted_features = explain_kidney([
+                    age_k, bp_k, bgr_k, bu_k, sc_k,
+                    sod_k, pot_k, hemo_k, pcv_k, wc_k, rc_k
+                ])
+                shap_df = pd.DataFrame(sorted_features, columns=["Feature", "Impact"])
+                fig_k = px.bar(
+                    shap_df, x="Impact", y="Feature", orientation="h",
+                    color="Impact",
+                    color_continuous_scale=["#F3E5F5", "#7B1FA2"],
+                    title="Feature Importance — Kidney"
+                )
+                fig_k.update_layout(
+                    plot_bgcolor=card_bg, paper_bgcolor=card_bg,
+                    height=300, margin=dict(t=40, b=20),
+                    font=dict(family="Inter", size=12, color=text),
+                    showlegend=False, coloraxis_showscale=False
+                )
+                st.plotly_chart(fig_k, use_container_width=True, key="k_shap")
+
+                if patient_name_k:
+                    add_diagnosis(0, "Kidney Disease", result, confidence)
+
+                report = generate_report(
+                    patient_name_k or "Unknown", "Kidney Disease",
+                    result, confidence, sorted_features,
+                    st.session_state.username
+                )
+                st.download_button(
+                    "📥 Download Report", data=report,
+                    file_name=f"kidney_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain", key="k_download"
+                )
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 💊 AI Medication Suggestions")
+                with st.spinner("Getting recommendations..."):
+                    suggestions = get_medication_suggestions(
+                        "Kidney Disease", result,
+                        f"Age: {age_k}, Creatinine: {sc_k}, Hemoglobin: {hemo_k}"
+                    )
+                    st.markdown(suggestions)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── Liver Tab ──────────────────────────────
+    with tab4:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### Patient Clinical Data — Liver Disease")
+        st.markdown("<br>", unsafe_allow_html=True)
+        patient_name_l = st.text_input("Patient Name (optional)", key="l_name")
+        col1, col2 = st.columns(2)
+        with col1:
+            age_l = st.number_input("Age", 1, 120, 40, key="l_age")
+            gender_l = st.selectbox("Gender", [0, 1],
+                format_func=lambda x: "Female" if x == 0 else "Male", key="l_gender")
+            total_bilirubin = st.number_input("Total Bilirubin", 0.0, 80.0, 1.0, key="l_tb")
+            direct_bilirubin = st.number_input("Direct Bilirubin", 0.0, 20.0, 0.3, key="l_db")
+            alkaline_phosphotase = st.number_input("Alkaline Phosphotase", 0, 2000, 200, key="l_ap")
+        with col2:
+            alamine = st.number_input("Alamine Aminotransferase", 0, 2000, 35, key="l_alt")
+            aspartate = st.number_input("Aspartate Aminotransferase", 0, 5000, 35, key="l_ast")
+            total_proteins = st.number_input("Total Proteins", 0.0, 10.0, 6.5, key="l_tp")
+            albumin = st.number_input("Albumin", 0.0, 6.0, 3.5, key="l_alb")
+            ag_ratio = st.number_input("Albumin/Globulin Ratio", 0.0, 3.0, 1.0, key="l_agr")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Run Liver Analysis", use_container_width=True, key="run_liver"):
+            with st.spinner("Processing..."):
+                result, confidence = predict_liver([
+                    age_l, gender_l, total_bilirubin, direct_bilirubin,
+                    alkaline_phosphotase, alamine, aspartate,
+                    total_proteins, albumin, ag_ratio
+                ])
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("### 📊 Diagnosis Results")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    if result == "Positive":
+                        st.error("**Diagnosis: Liver Disease Detected**")
+                        st.warning("Recommend immediate hepatologist consultation.")
+                    else:
+                        st.success("**Diagnosis: No Liver Disease Detected**")
+                        st.info("Patient shows no significant liver disease markers.")
+                with col2:
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=confidence,
+                        number={"suffix": "%"},
+                        title={"text": "Confidence", "font": {"size": 14}},
+                        gauge={
+                            "axis": {"range": [0, 100]},
+                            "bar": {"color": "#F57C00", "thickness": 0.3},
+                            "bgcolor": card_bg,
+                            "borderwidth": 0,
+                            "steps": [
+                                {"range": [0, 60], "color": "#FFF3E0"},
+                                {"range": [60, 80], "color": "#FFCC80"},
+                                {"range": [80, 100], "color": "#FFA726"}
+                            ]
+                        }
+                    ))
+                    fig.update_layout(
+                        height=200,
+                        margin=dict(t=30, b=0, l=10, r=10),
+                        paper_bgcolor=card_bg,
+                        font=dict(family="Inter", color=text)
+                    )
+                    st.plotly_chart(fig, use_container_width=True, key="l_gauge")
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 🧠 AI Explainability")
+                sorted_features = explain_liver([
+                    age_l, gender_l, total_bilirubin, direct_bilirubin,
+                    alkaline_phosphotase, alamine, aspartate,
+                    total_proteins, albumin, ag_ratio
+                ])
+                shap_df = pd.DataFrame(sorted_features, columns=["Feature", "Impact"])
+                fig_l = px.bar(
+                    shap_df, x="Impact", y="Feature", orientation="h",
+                    color="Impact",
+                    color_continuous_scale=["#FFF3E0", "#F57C00"],
+                    title="Feature Importance — Liver"
+                )
+                fig_l.update_layout(
+                    plot_bgcolor=card_bg, paper_bgcolor=card_bg,
+                    height=300, margin=dict(t=40, b=20),
+                    font=dict(family="Inter", size=12, color=text),
+                    showlegend=False, coloraxis_showscale=False
+                )
+                st.plotly_chart(fig_l, use_container_width=True, key="l_shap")
+
+                if patient_name_l:
+                    add_diagnosis(0, "Liver Disease", result, confidence)
+
+                report = generate_report(
+                    patient_name_l or "Unknown", "Liver Disease",
+                    result, confidence, sorted_features,
+                    st.session_state.username
+                )
+                st.download_button(
+                    "📥 Download Report", data=report,
+                    file_name=f"liver_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain", key="l_download"
+                )
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 💊 AI Medication Suggestions")
+                with st.spinner("Getting recommendations..."):
+                    suggestions = get_medication_suggestions(
+                        "Liver Disease", result,
+                        f"Age: {age_l}, Bilirubin: {total_bilirubin}, Albumin: {albumin}"
+                    )
+                    st.markdown(suggestions)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── Parkinson's Tab ────────────────────────
+    with tab5:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### Patient Clinical Data — Parkinson's Disease")
+        st.info("Enter voice measurement values from clinical assessment")
+        st.markdown("<br>", unsafe_allow_html=True)
+        patient_name_p = st.text_input("Patient Name (optional)", key="p_name")
+        col1, col2 = st.columns(2)
+        with col1:
+            fo = st.number_input("MDVP Fo Hz (Avg vocal freq)", 80.0, 270.0, 154.0, key="p_fo")
+            fhi = st.number_input("MDVP Fhi Hz (Max vocal freq)", 100.0, 600.0, 197.0, key="p_fhi")
+            flo = st.number_input("MDVP Flo Hz (Min vocal freq)", 60.0, 240.0, 116.0, key="p_flo")
+            jitter_percent = st.number_input("MDVP Jitter %", 0.0, 1.0, 0.006, format="%.4f", key="p_jp")
+            jitter_abs = st.number_input("MDVP Jitter Abs", 0.0, 0.01, 0.00004, format="%.5f", key="p_ja")
+            rap = st.number_input("MDVP RAP", 0.0, 0.1, 0.003, format="%.4f", key="p_rap")
+            ppq = st.number_input("MDVP PPQ", 0.0, 0.1, 0.003, format="%.4f", key="p_ppq")
+            ddp = st.number_input("Jitter DDP", 0.0, 0.1, 0.009, format="%.4f", key="p_ddp")
+            shimmer = st.number_input("MDVP Shimmer", 0.0, 1.0, 0.03, format="%.4f", key="p_sh")
+            shimmer_db = st.number_input("MDVP Shimmer dB", 0.0, 3.0, 0.28, key="p_shdb")
+            apq3 = st.number_input("Shimmer APQ3", 0.0, 0.1, 0.015, format="%.4f", key="p_apq3")
+        with col2:
+            apq5 = st.number_input("Shimmer APQ5", 0.0, 0.2, 0.02, format="%.4f", key="p_apq5")
+            apq = st.number_input("MDVP APQ", 0.0, 0.2, 0.024, format="%.4f", key="p_apq")
+            dda = st.number_input("Shimmer DDA", 0.0, 0.2, 0.046, format="%.4f", key="p_dda")
+            nhr = st.number_input("NHR", 0.0, 0.5, 0.025, format="%.4f", key="p_nhr")
+            hnr = st.number_input("HNR", 0.0, 35.0, 21.0, key="p_hnr")
+            rpde = st.number_input("RPDE", 0.0, 1.0, 0.5, key="p_rpde")
+            dfa = st.number_input("DFA", 0.0, 1.0, 0.72, key="p_dfa")
+            spread1 = st.number_input("Spread1", -10.0, 0.0, -5.7, key="p_s1")
+            spread2 = st.number_input("Spread2", 0.0, 0.5, 0.22, key="p_s2")
+            d2 = st.number_input("D2", 0.0, 4.0, 2.3, key="p_d2")
+            ppe = st.number_input("PPE", 0.0, 0.5, 0.18, key="p_ppe")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Run Parkinson's Analysis",
+                     use_container_width=True, key="run_parkinsons"):
+            with st.spinner("Processing..."):
+                result, confidence = predict_parkinsons([
+                    fo, fhi, flo, jitter_percent, jitter_abs,
+                    rap, ppq, ddp, shimmer, shimmer_db,
+                    apq3, apq5, apq, dda, nhr, hnr,
+                    rpde, dfa, spread1, spread2, d2, ppe
+                ])
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("### 📊 Diagnosis Results")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    if result == "Positive":
+                        st.error("**Diagnosis: Parkinson's Disease Detected**")
+                        st.warning("Recommend immediate neurologist consultation.")
+                    else:
+                        st.success("**Diagnosis: No Parkinson's Disease Detected**")
+                        st.info("Patient shows no significant Parkinson's markers.")
+                with col2:
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=confidence,
+                        number={"suffix": "%"},
+                        title={"text": "Confidence", "font": {"size": 14}},
+                        gauge={
+                            "axis": {"range": [0, 100]},
+                            "bar": {"color": "#1565C0", "thickness": 0.3},
+                            "bgcolor": card_bg,
+                            "borderwidth": 0,
+                            "steps": [
+                                {"range": [0, 60], "color": "#E3F2FD"},
+                                {"range": [60, 80], "color": "#90CAF9"},
+                                {"range": [80, 100], "color": "#42A5F5"}
+                            ]
+                        }
+                    ))
+                    fig.update_layout(
+                        height=200,
+                        margin=dict(t=30, b=0, l=10, r=10),
+                        paper_bgcolor=card_bg,
+                        font=dict(family="Inter", color=text)
+                    )
+                    st.plotly_chart(fig, use_container_width=True, key="p_gauge")
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 🧠 AI Explainability")
+                sorted_features = explain_parkinsons([
+                    fo, fhi, flo, jitter_percent, jitter_abs,
+                    rap, ppq, ddp, shimmer, shimmer_db,
+                    apq3, apq5, apq, dda, nhr, hnr,
+                    rpde, dfa, spread1, spread2, d2, ppe
+                ])
+                shap_df = pd.DataFrame(sorted_features, columns=["Feature", "Impact"])
+                fig_p = px.bar(
+                    shap_df.head(10), x="Impact", y="Feature",
+                    orientation="h", color="Impact",
+                    color_continuous_scale=["#E3F2FD", "#1565C0"],
+                    title="Top 10 Feature Importance — Parkinson's"
+                )
+                fig_p.update_layout(
+                    plot_bgcolor=card_bg, paper_bgcolor=card_bg,
+                    height=300, margin=dict(t=40, b=20),
+                    font=dict(family="Inter", size=12, color=text),
+                    showlegend=False, coloraxis_showscale=False
+                )
+                st.plotly_chart(fig_p, use_container_width=True, key="p_shap")
+
+                if patient_name_p:
+                    add_diagnosis(0, "Parkinson's Disease", result, confidence)
+
+                report = generate_report(
+                    patient_name_p or "Unknown", "Parkinson's Disease",
+                    result, confidence, sorted_features,
+                    st.session_state.username
+                )
+                st.download_button(
+                    "📥 Download Report", data=report,
+                    file_name=f"parkinsons_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain", key="p_download"
+                )
+
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("#### 💊 AI Medication Suggestions")
+                with st.spinner("Getting recommendations..."):
+                    suggestions = get_medication_suggestions(
+                        "Parkinson's Disease", result,
+                        f"Voice HNR: {hnr}, RPDE: {rpde}, DFA: {dfa}"
+                    )
+                    st.markdown(suggestions)
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Patient Management ─────────────────────────
