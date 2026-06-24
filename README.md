@@ -251,7 +251,6 @@ streamlit run app.py
 ## 👩‍💻 Author
 
 **G. Ushapriya**
-B.Tech (IoT)
 
 * GitHub: https://github.com/Ushapriya06
 * LinkedIn: https://linkedin.com/in/usha-priya-3830072a9
