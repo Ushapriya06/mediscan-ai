@@ -10,4 +10,3 @@ python-dotenv
 PyPDF2
 shap
 sqlalchemy
-supabase

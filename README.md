@@ -1,30 +1,10 @@
 # 🏥 MediScan AI — Intelligent Medical Diagnosis & Patient Management Platform
 
-
-
-![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat&logo=python)
-
-
-
-
-![Streamlit](https://img.shields.io/badge/Streamlit-1.x-red?style=flat&logo=streamlit)
-
-
-
-
+![Python](https://img.shields.io/badge/Python-3.10+-blue?style=flat\&logo=python)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.x-red?style=flat\&logo=streamlit)
 ![ML](https://img.shields.io/badge/Machine%20Learning-Scikit--learn-orange?style=flat)
-
-
-
-
 ![AI](https://img.shields.io/badge/AI-Google%20Gemini-green?style=flat)
-
-
-
-
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)
-
-
 
 > An AI-powered comprehensive medical diagnosis and patient management platform
 > that combines Machine Learning, Explainable AI, and Generative AI to assist
@@ -33,20 +13,23 @@
 ---
 
 ## 🌟 Live Demo
-🚀 **[Coming Soon — Deploying on Streamlit Cloud]**
+
+🚀 **https://mediscan-ai-123.streamlit.app/**
 
 ---
 
 ## 📋 Table of Contents
-- [Overview](#overview)
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [ML Models](#ml-models)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Screenshots](#screenshots)
-- [Author](#author)
+
+* [Overview](#overview)
+* [Features](#features)
+* [Tech Stack](#tech-stack)
+* [Project Structure](#project-structure)
+* [ML Models](#ml-models)
+* [Installation](#installation)
+* [Usage](#usage)
+* [Datasets](#datasets)
+* [Future Enhancements](#future-enhancements)
+* [Author](#author)
 
 ---
 
@@ -66,189 +49,219 @@ are explainable — critical for medical applications.
 ## ✨ Features
 
 ### 🔐 Authentication System
-- Secure login and registration with SHA-256 password hashing
-- Role-based access (Doctor, Nurse, Admin)
-- HIPAA-compliant session management
+
+* Secure login and registration with SHA-256 password hashing
+* Role-based access (Doctor, Nurse, Admin)
+* Session management
 
 ### 🔬 AI Disease Prediction
-- **Diabetes Detection** — Random Forest classifier (88%+ accuracy)
-- **Heart Disease Detection** — Random Forest classifier (88%+ accuracy)
-- Real-time predictions with confidence scores
-- Gauge chart visualization for confidence level
+
+* **Diabetes Detection** — Random Forest classifier (~88% accuracy)
+
+* **Heart Disease Detection** — Random Forest classifier (~88% accuracy)
+
+* **Kidney Disease Detection** — ML-based classification
+
+* **Liver Disease Detection** — Predicts liver disorders
+
+* **Parkinson’s Disease Detection** — SVM/ML-based classification
+
+* Real-time predictions with confidence scores
+
+* Gauge chart visualization for confidence
 
 ### 🧠 Explainable AI (XAI)
-- Feature importance analysis for every prediction
-- Visual bar charts showing top influencing clinical factors
-- Transparent AI — doctors understand WHY the AI made a decision
-- Built using SHAP-inspired Random Forest feature importances
+
+* Feature importance analysis for every prediction
+* Visual bar charts showing key influencing factors
+* Transparent AI — understand WHY predictions are made
 
 ### 👥 Patient Management System
-- Register new patients with complete medical profile
-- Search patients by name or ID
-- Edit and update patient records
-- Delete patient records
-- SQLite database with full CRUD operations
+
+* Register new patients
+* Search patients by name or ID
+* Update and delete patient records
+* SQLite database with CRUD operations
 
 ### 📅 Appointment Booking
-- Book appointments with specialist doctors
-- Select department, date, and time slot
-- View all scheduled appointments
-- Status tracking (Scheduled/Completed/Cancelled)
+
+* Book appointments with specialists
+* Select department, date, and time
+* Track appointment status
 
 ### 💊 AI Medication Suggestions
-- Powered by Google Gemini 2.5
-- Provides clinical recommendations based on diagnosis
-- Lists medications, lifestyle changes, follow-up tests
-- Downloadable recommendation reports
+
+* Powered by Google Gemini 2.5
+* Provides:
+
+  * Medications
+  * Lifestyle recommendations
+  * Follow-up tests
 
 ### 📋 Medical Report Summarizer
-- Upload PDF medical reports
-- AI extracts key findings, diagnosis summary, risk factors
-- Structured clinical analysis in seconds
-- Download AI analysis as text report
+
+* Upload PDF reports
+* Extract diagnosis, risk factors, key insights
+* Generate structured summaries
 
 ### 📊 Analytics Dashboard
-- Real-time stats: patients, diagnoses, appointments
-- Model performance visualization
-- System status monitoring
 
-### 🌙 Dark/Light Mode
-- Toggle between dark and light themes
-- Professional hospital-grade UI in both modes
+* Real-time stats: patients, diagnoses, appointments
+* Model performance insights
+
+### 🌙 UI Features
+
+* Dark/Light mode
+* Clean, professional interface
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Category | Technology |
-|---|---|
-| **Frontend** | Streamlit, Plotly, Custom CSS |
-| **Backend** | Python, SQLite, SQLAlchemy |
-| **Machine Learning** | Scikit-learn, Random Forest, SHAP |
-| **Generative AI** | Google Gemini 2.5 API, LangChain |
-| **Data Processing** | Pandas, NumPy |
-| **Security** | SHA-256 Hashing, Session Management |
-| **Deployment** | Streamlit Cloud |
-| **Version Control** | Git, GitHub |
+| Category         | Technology                       |
+| ---------------- | -------------------------------- |
+| Frontend         | Streamlit, Plotly, Custom CSS    |
+| Backend          | Python, SQLite, SQLAlchemy       |
+| Machine Learning | Scikit-learn, Random Forest, SVM |
+| Generative AI    | Google Gemini 2.5, LangChain     |
+| Data Processing  | Pandas, NumPy                    |
+| Security         | SHA-256 Hashing                  |
+| Deployment       | Streamlit Cloud                  |
+| Version Control  | Git, GitHub                      |
 
 ---
 
 ## 📁 Project Structure
+
 mediscan-ai/
-├── app.py                  # Main Streamlit application
-├── database.py             # SQLite database operations
+├── app.py
+├── database.py
 ├── models/
-│   ├── init.py
-│   ├── diabetes.py         # Diabetes ML model
-│   └── heart.py            # Heart disease ML model
+│   ├── diabetes.py
+│   ├── heart.py
+│   ├── kidney.py
+│   ├── liver.py
+│   └── parkinsons.py
 ├── data/
-│   ├── diabetes.csv        # PIMA Diabetes dataset
-│   └── heart.csv           # UCI Heart Disease dataset
-├── saved_models/           # Trained model pickle files
-├── .env                    # API keys (not tracked)
+├── saved_models/
+├── .env
 ├── .gitignore
 ├── requirements.txt
 └── README.md
+
 ---
 
 ## 🤖 ML Models
 
 ### Diabetes Prediction Model
-- **Algorithm:** Random Forest Classifier
-- **Dataset:** PIMA Indians Diabetes Database (768 samples, 8 features)
-- **Features:** Pregnancies, Glucose, BloodPressure, SkinThickness,
-  Insulin, BMI, DiabetesPedigreeFunction, Age
-- **Accuracy:** ~88%
-- **Preprocessing:** StandardScaler normalization
+
+* **Algorithm:** Random Forest
+* **Dataset:** PIMA Diabetes Dataset
+* **Accuracy:** ~88%
 
 ### Heart Disease Prediction Model
-- **Algorithm:** Random Forest Classifier
-- **Dataset:** UCI Heart Disease Cleveland Dataset (303 samples, 13 features)
-- **Features:** Age, Sex, ChestPain, RestingBP, Cholesterol, FastingBS,
-  RestECG, MaxHR, ExerciseAngina, Oldpeak, Slope, MajorVessels, Thal
-- **Accuracy:** ~88%
-- **Preprocessing:** StandardScaler normalization
+
+* **Algorithm:** Random Forest
+* **Dataset:** UCI Heart Disease Dataset
+* **Accuracy:** ~88%
+
+### Kidney Disease Prediction Model
+
+* **Algorithm:** Random Forest / Logistic Regression
+* **Dataset:** Chronic Kidney Disease Dataset
+* **Goal:** Early detection
+
+### Liver Disease Prediction Model
+
+* **Algorithm:** Decision Tree / Random Forest
+* **Dataset:** Indian Liver Patient Dataset
+
+### Parkinson’s Disease Prediction Model
+
+* **Algorithm:** Support Vector Machine (SVM)
+* **Dataset:** UCI Parkinson’s Dataset
+* **Features:** Voice measurements (jitter, shimmer, etc.)
+* **Accuracy:** ~85–90%
 
 ---
 
 ## ⚙️ Installation
 
 ### Prerequisites
-- Python 3.10+
-- Google Gemini API Key (free from [aistudio.google.com](https://aistudio.google.com))
+
+* Python 3.10+
+* Google Gemini API Key
 
 ### Steps
 
 ```bash
-# 1. Clone repository
 git clone https://github.com/Ushapriya06/mediscan-ai.git
 cd mediscan-ai
-
-# 2. Install dependencies
 pip install -r requirements.txt
+```
 
-# 3. Create .env file
-echo "GOOGLE_API_KEY=your_api_key_here" > .env
+Create `.env` file:
 
-# 4. Run the application
+```bash
+GOOGLE_API_KEY=your_api_key_here
+```
+
+Run:
+
+```bash
 streamlit run app.py
-
-### Default Login Credentials
-Username: admin
-Password: admin123
+```
 
 ---
 
 ## 🚀 Usage
 
-1. Login with admin credentials or register a new account
-2. Dashboard — view platform statistics and model performance
-3. Disease Prediction — enter patient clinical data and get AI diagnosis
-4. AI Explainability — understand which factors influenced the diagnosis
-5. Patient Management — register, search, edit, delete patients
-6. Appointments — book and manage doctor appointments
-7. Medication Suggestions — get AI-powered clinical recommendations
-8. Report Summarizer — upload PDF reports for AI analysis
+1. Login or register
+2. Use dashboard for overview
+3. Enter patient data for disease prediction
+4. View explainable AI results
+5. Manage patients and appointments
+6. Generate AI recommendations
+7. Upload reports for summarization
 
 ---
 
-## 📊 Datasets Used
+## 📊 Datasets
 
-| Dataset | Source | Samples | Features |
-|---|---|---|---|
-| PIMA Indians Diabetes | Kaggle/UCI | 768 | 8 |
-| Heart Disease Cleveland | Kaggle/UCI | 303 | 13 |
+| Dataset        | Source       |
+| -------------- | ------------ |
+| Diabetes       | UCI / Kaggle |
+| Heart Disease  | UCI          |
+| Kidney Disease | UCI          |
+| Liver Disease  | ILPD         |
+| Parkinson’s    | UCI          |
 
 ---
 
 ## 🔮 Future Enhancements
 
-- Medical image analysis — Chest X-ray CNN
-- Kidney disease prediction module
-- Brain tumor detection from MRI
-- Integration with HL7 FHIR standards
-- Mobile app React Native
-- Cloud deployment AWS/GCP
-- Real-time patient monitoring dashboard
+* Medical image analysis (X-ray, MRI)
+* Mobile application
+* Cloud deployment (AWS/GCP)
+* Real-time monitoring
+* Hospital integration APIs
 
 ---
 
 ## 👩‍💻 Author
 
 **G. Ushapriya**
-- B.Tech ECE — Megha Institute of Engineering and Technology for Women
-- Seeking: AI/ML Engineer | Python Developer | Data Analyst
-- LinkedIn: linkedin.com/in/usha-priya-3830072a9
-- GitHub: github.com/Ushapriya06
-- Email: ushapriya006@gmail.com
+
+* GitHub: https://github.com/Ushapriya06
+* LinkedIn: https://linkedin.com/in/usha-priya-3830072a9
+* Email: [ushapriya006@gmail.com](mailto:ushapriya006@gmail.com)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License
 
 ---
 
-Built with ❤️ by G. Ushapriya | MediScan AI v2.0
-
+Built with ❤️ by Ushapriya | MediScan AI 🚀

@@ -130,3 +130,61 @@ def update_appointment_status(appointment_id, status):
     supabase.table("appointments").update({
         "status": status
     }).eq("id", appointment_id).execute()
+
+def get_analytics():
+    # Diagnoses per disease
+    diseases = supabase.table("diagnoses").select(
+        "disease"
+    ).execute()
+    
+    # Monthly registrations
+    patients = supabase.table("patients").select(
+        "created_at"
+    ).execute()
+    
+    # Positive vs negative
+    positive = supabase.table("diagnoses").select(
+        "*", count="exact"
+    ).eq("prediction", "Positive").execute()
+    
+    negative = supabase.table("diagnoses").select(
+        "*", count="exact"
+    ).eq("prediction", "Negative").execute()
+    
+    # Appointments by status
+    appointments = supabase.table("appointments").select(
+        "status"
+    ).execute()
+    
+    return {
+        "diseases": diseases.data,
+        "patients": patients.data,
+        "positive": positive.count or 0,
+        "negative": negative.count or 0,
+        "appointments": appointments.data
+    }
+
+def get_recent_diagnoses():
+    result = supabase.table("diagnoses").select(
+        "*"
+    ).order("date", desc=True).limit(10).execute()
+    return pd.DataFrame(result.data)
+
+def get_recent_patients():
+    result = supabase.table("patients").select(
+        "*"
+    ).order("created_at", desc=True).limit(5).execute()
+    return pd.DataFrame(result.data)
+
+def update_user_email(username, email):
+    supabase.table("users").update({
+        "email": email
+    }).eq("username", username).execute()
+
+def get_user_email(username):
+    result = supabase.table("users").select(
+        "email"
+    ).eq("username", username).execute()
+    if result.data and result.data[0]["email"]:
+        return result.data[0]["email"]
+    return None
