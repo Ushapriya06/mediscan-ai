@@ -1,3 +1,9 @@
+import time
+from fpdf import FPDF
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from collections import Counter
 import streamlit as st
 from database import init_db
 init_db()
@@ -290,11 +296,13 @@ with st.sidebar:
 
     page = st.radio("", [
         "🏠  Dashboard",
+        "📊  Analytics",
         "🔬  Disease Prediction",
         "👥  Patient Management",
         "📅  Appointments",
         "💊  Medication Suggestions",
-        "📋  Report Summarizer"
+        "📋  Report Summarizer",
+        "⚙️  Settings"
     ])
 
     st.markdown("<hr style='border-color:#2D3456'>", unsafe_allow_html=True)
@@ -309,6 +317,190 @@ with st.sidebar:
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.rerun()
+
+# ── Email Notification ─────────────────────────
+def send_email(to_email, subject, body):
+    try:
+        sender = os.getenv("EMAIL_USER")
+        password = os.getenv("EMAIL_PASSWORD")
+        msg = MIMEMultipart()
+        msg["From"] = sender
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "html"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender, password)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        return False
+
+def appointment_email(patient_name, doctor, date, time, to_email):
+    subject = "MediScan AI — Appointment Confirmation"
+    body = f"""
+    <div style="font-family: Arial; max-width: 600px; margin: auto;
+                border: 1px solid #ddd; border-radius: 10px; overflow: hidden">
+        <div style="background: #1A5276; padding: 20px; text-align: center">
+            <h1 style="color: white; margin: 0">🏥 MediScan AI</h1>
+            <p style="color: #AED6F1; margin: 5px 0">Medical Intelligence Platform</p>
+        </div>
+        <div style="padding: 30px">
+            <h2 style="color: #1A5276">Appointment Confirmed ✅</h2>
+            <p>Dear <b>{patient_name}</b>,</p>
+            <p>Your appointment has been successfully booked.</p>
+            <div style="background: #EBF5FB; padding: 15px;
+                        border-radius: 8px; margin: 20px 0">
+                <p><b>👨‍⚕️ Doctor:</b> {doctor}</p>
+                <p><b>📅 Date:</b> {date}</p>
+                <p><b>⏰ Time:</b> {time}</p>
+            </div>
+            <p>Please arrive 10 minutes before your appointment.</p>
+            <p>For any queries contact us at mediscan@hospital.com</p>
+        </div>
+        <div style="background: #EBF5FB; padding: 15px; text-align: center">
+            <p style="color: #666; font-size: 12px">
+            MediScan AI | Powered by Google Gemini 2.5
+            </p>
+        </div>
+    </div>
+    """
+    return send_email(to_email, subject, body)
+
+def diagnosis_email(patient_name, disease, result,
+                    confidence, to_email):
+    color = "#E74C3C" if result == "Positive" else "#27AE60"
+    subject = f"MediScan AI — {disease} Diagnosis Report"
+    body = f"""
+    <div style="font-family: Arial; max-width: 600px; margin: auto;
+                border: 1px solid #ddd; border-radius: 10px; overflow: hidden">
+        <div style="background: #1A5276; padding: 20px; text-align: center">
+            <h1 style="color: white; margin: 0">🏥 MediScan AI</h1>
+            <p style="color: #AED6F1; margin: 5px 0">Medical Intelligence Platform</p>
+        </div>
+        <div style="padding: 30px">
+            <h2 style="color: #1A5276">Diagnosis Report</h2>
+            <p>Dear <b>{patient_name}</b>,</p>
+            <p>Your AI diagnosis results are ready.</p>
+            <div style="background: #EBF5FB; padding: 15px;
+                        border-radius: 8px; margin: 20px 0">
+                <p><b>🔬 Disease Assessed:</b> {disease}</p>
+                <p><b>📊 Result:</b>
+                    <span style="color: {color}; font-weight: bold">
+                        {result}
+                    </span>
+                </p>
+                <p><b>🎯 AI Confidence:</b> {confidence}%</p>
+            </div>
+            <p style="color: #E74C3C">
+                <b>⚠️ Important:</b> This is an AI-assisted diagnosis.
+                Please consult a qualified physician for medical advice.
+            </p>
+        </div>
+        <div style="background: #EBF5FB; padding: 15px; text-align: center">
+            <p style="color: #666; font-size: 12px">
+            MediScan AI | HIPAA Compliant | Powered by Google Gemini 2.5
+            </p>
+        </div>
+    </div>
+    """
+    return send_email(to_email, subject, body)
+
+# ── PDF Report Generator ───────────────────────
+def generate_pdf_report(patient_name, disease, result,
+                        confidence, features, username,
+                        suggestions):
+    pdf = FPDF()
+    pdf.add_page()
+
+    # Header
+    pdf.set_fill_color(26, 82, 118)
+    pdf.rect(0, 0, 210, 35, "F")
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_xy(10, 8)
+    pdf.cell(0, 10, "MEDISCAN AI", ln=True, align="C")
+    pdf.set_font("Helvetica", size=10)
+    pdf.set_xy(10, 20)
+    pdf.cell(0, 8, "Medical Intelligence Platform | Clinical Diagnosis Report",
+             ln=True, align="C")
+
+    # Report details
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_xy(10, 45)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "PATIENT DIAGNOSIS REPORT", ln=True)
+
+    pdf.set_font("Helvetica", size=10)
+    pdf.set_fill_color(235, 245, 251)
+    pdf.rect(10, 58, 190, 35, "F")
+    pdf.set_xy(15, 62)
+    pdf.cell(90, 7,
+             f"Patient Name: {patient_name.encode('latin-1', 'replace').decode('latin-1')}")
+    pdf.cell(90, 7, f"Generated By: Dr. {username}", ln=True)
+    pdf.set_xy(15, 72)
+    pdf.cell(90, 7, f"Disease Assessed: {disease}")
+    pdf.cell(90, 7,
+             f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
+
+    # Result
+    pdf.set_xy(10, 100)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "DIAGNOSIS RESULT", ln=True)
+    if result == "Positive":
+        pdf.set_fill_color(231, 76, 60)
+    else:
+        pdf.set_fill_color(39, 174, 96)
+    pdf.set_text_color(255, 255, 255)
+    pdf.rect(10, 110, 190, 20, "F")
+    pdf.set_xy(10, 114)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(95, 10, f"Result: {result}", align="C")
+    pdf.cell(95, 10, f"AI Confidence: {confidence}%",
+             align="C", ln=True)
+
+    # Feature importance
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_xy(10, 138)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "TOP INFLUENCING FACTORS (AI EXPLAINABILITY)", ln=True)
+    pdf.set_font("Helvetica", size=10)
+    for i, (feat, imp) in enumerate(features[:5], 1):
+        feat_clean = str(feat).encode(
+            'latin-1', 'replace'
+        ).decode('latin-1')
+        pdf.set_xy(15, 148 + (i-1)*10)
+        pdf.set_fill_color(214, 234, 248)
+        bar_width = int(imp * 150)
+        pdf.rect(15, 149 + (i-1)*10, bar_width, 6, "F")
+        pdf.set_xy(15, 148 + (i-1)*10)
+        pdf.cell(0, 8,
+                 f"{i}. {feat_clean}: {round(imp*100, 1)}%")
+
+    # Disclaimer
+    pdf.set_xy(10, 210)
+    pdf.set_fill_color(254, 249, 231)
+    pdf.rect(10, 208, 190, 25, "F")
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.set_text_color(100, 100, 100)
+    pdf.set_xy(15, 212)
+    pdf.multi_cell(180, 6,
+        "DISCLAIMER: This report is generated by MediScan AI and is "
+        "intended for doctor reference only. It does not replace "
+        "professional medical advice, diagnosis, or treatment. "
+        "Always consult a qualified physician.")
+
+    # Footer
+    pdf.set_fill_color(26, 82, 118)
+    pdf.rect(0, 275, 210, 22, "F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", size=9)
+    pdf.set_xy(10, 280)
+    pdf.cell(0, 8,
+             "MediScan AI v2.0 | Powered by Google Gemini 2.5 | "
+             "HIPAA Compliant | mediscan-ai-tkuv.onrender.com",
+             align="C")
+
+    return bytes(pdf.output())
 
 # ── Helper: AI Medication Suggestions ─────────
 def get_medication_suggestions(disease, result, patient_info):
@@ -498,6 +690,134 @@ if page == "🏠  Dashboard":
             """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
+# ── Analytics ─────────────────────────────────
+elif page == "📊  Analytics":
+    from database import get_analytics, get_recent_diagnoses, get_recent_patients
+    st.markdown(f"""
+    <div class='nav-bar'>
+        <div>
+            <div style='font-size:20px; font-weight:700; color:{text}'>
+                Analytics Dashboard
+            </div>
+            <div style='font-size:13px; color:{subtext}'>
+                Platform insights and statistics
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    analytics = get_analytics()
+
+    # Disease distribution
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### 🔬 Diagnoses by Disease")
+        if analytics["diseases"]:
+            disease_counts = Counter(
+                [d["disease"] for d in analytics["diseases"]]
+            )
+            fig = px.pie(
+                values=list(disease_counts.values()),
+                names=list(disease_counts.keys()),
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig.update_layout(
+                paper_bgcolor=card_bg,
+                font=dict(family="Inter", color=text),
+                margin=dict(t=20, b=20)
+            )
+            st.plotly_chart(fig, use_container_width=True,
+                          key="analytics_pie")
+        else:
+            st.info("No diagnoses recorded yet!")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### 📊 Positive vs Negative Cases")
+        if analytics["positive"] + analytics["negative"] > 0:
+            fig = go.Figure(go.Bar(
+                x=["Positive Cases", "Negative Cases"],
+                y=[analytics["positive"], analytics["negative"]],
+                marker_color=["#E74C3C", "#27AE60"],
+                text=[analytics["positive"], analytics["negative"]],
+                textposition="outside"
+            ))
+            fig.update_layout(
+                plot_bgcolor=card_bg,
+                paper_bgcolor=card_bg,
+                font=dict(family="Inter", color=text),
+                margin=dict(t=20, b=20),
+                height=300
+            )
+            st.plotly_chart(fig, use_container_width=True,
+                          key="analytics_bar")
+        else:
+            st.info("No diagnoses recorded yet!")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Recent activity
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### 👥 Recent Patients")
+        recent_patients = get_recent_patients()
+        if len(recent_patients) > 0:
+            st.dataframe(
+                recent_patients[["id", "name", "age",
+                                "gender", "created_at"]],
+                use_container_width=True
+            )
+        else:
+            st.info("No patients registered yet!")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### 🔬 Recent Diagnoses")
+        recent_dx = get_recent_diagnoses()
+        if len(recent_dx) > 0:
+            st.dataframe(
+                recent_dx[["disease", "prediction",
+                           "confidence", "date"]],
+                use_container_width=True
+            )
+        else:
+            st.info("No diagnoses recorded yet!")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # Appointment stats
+    st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+    st.markdown("#### 📅 Appointment Status Distribution")
+    if analytics["appointments"]:
+        apt_counts = Counter(
+            [a["status"] for a in analytics["appointments"]]
+        )
+        fig = px.bar(
+            x=list(apt_counts.keys()),
+            y=list(apt_counts.values()),
+            color=list(apt_counts.keys()),
+            color_discrete_map={
+                "Scheduled": "#3498DB",
+                "Completed": "#27AE60",
+                "Cancelled": "#E74C3C"
+            }
+        )
+        fig.update_layout(
+            plot_bgcolor=card_bg,
+            paper_bgcolor=card_bg,
+            font=dict(family="Inter", color=text),
+            margin=dict(t=20, b=20),
+            height=250,
+            showlegend=False
+        )
+        st.plotly_chart(fig, use_container_width=True,
+                      key="apt_bar")
+    else:
+        st.info("No appointments recorded yet!")
+    st.markdown("</div>", unsafe_allow_html=True)
+
 # ── Disease Prediction ─────────────────────────
 elif page == "🔬  Disease Prediction":
     st.markdown(f"""
@@ -636,17 +956,18 @@ elif page == "🔬  Disease Prediction":
                     add_diagnosis(0, "Diabetes", result, confidence)
 
                 # Download report
-                report = generate_report(
+                pdf_data = generate_pdf_report(
                     patient_name_d or "Unknown",
                     "Diabetes", result, confidence,
                     sorted_features,
-                    st.session_state.username
+                    st.session_state.username,
+                    ""
                 )
                 st.download_button(
-                    "📥 Download Diagnosis Report",
-                    data=report,
-                    file_name=f"diabetes_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain",
+                    "📥 Download PDF Report",
+                    data=pdf_data,
+                    file_name=f"diabetes_report_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
                     key="d_download"
                 )
 
@@ -800,18 +1121,19 @@ elif page == "🔬  Disease Prediction":
                     add_diagnosis(0, "Heart Disease", result, confidence)
 
                 # Download report
-                report = generate_report(
-                    patient_name_h or "Unknown",
-                    "Heart Disease", result, confidence,
+                pdf_data = generate_pdf_report(
+                    patient_name_d or "Unknown",
+                    "Cardiac", result, confidence,
                     sorted_features,
-                    st.session_state.username
+                    st.session_state.username,
+                    ""
                 )
                 st.download_button(
-                    "📥 Download Diagnosis Report",
-                    data=report,
-                    file_name=f"cardiac_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain",
-                    key="h_download"
+                    "📥 Download PDF Report",
+                    data=pdf_data,
+                    file_name=f"cardiac_report_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="d_download"
                 )
 
                 # Medication suggestions
@@ -921,15 +1243,19 @@ elif page == "🔬  Disease Prediction":
                 if patient_name_k:
                     add_diagnosis(0, "Kidney Disease", result, confidence)
 
-                report = generate_report(
-                    patient_name_k or "Unknown", "Kidney Disease",
-                    result, confidence, sorted_features,
-                    st.session_state.username
+                pdf_data = generate_pdf_report(
+                    patient_name_d or "Unknown",
+                    "Kidney", result, confidence,
+                    sorted_features,
+                    st.session_state.username,
+                    ""
                 )
                 st.download_button(
-                    "📥 Download Report", data=report,
-                    file_name=f"kidney_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain", key="k_download"
+                    "📥 Download PDF Report",
+                    data=pdf_data,
+                    file_name=f"kidney_report_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="d_download"
                 )
 
                 st.markdown("<hr>", unsafe_allow_html=True)
@@ -1032,17 +1358,20 @@ elif page == "🔬  Disease Prediction":
                 if patient_name_l:
                     add_diagnosis(0, "Liver Disease", result, confidence)
 
-                report = generate_report(
-                    patient_name_l or "Unknown", "Liver Disease",
-                    result, confidence, sorted_features,
-                    st.session_state.username
+                pdf_data = generate_pdf_report(
+                    patient_name_d or "Unknown",
+                    "Liver", result, confidence,
+                    sorted_features,
+                    st.session_state.username,
+                    ""
                 )
                 st.download_button(
-                    "📥 Download Report", data=report,
-                    file_name=f"liver_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain", key="l_download"
+                    "📥 Download PDF Report",
+                    data=pdf_data,
+                    file_name=f"liver_report_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="d_download"
                 )
-
                 st.markdown("<hr>", unsafe_allow_html=True)
                 st.markdown("#### 💊 AI Medication Suggestions")
                 with st.spinner("Getting recommendations..."):
@@ -1158,15 +1487,19 @@ elif page == "🔬  Disease Prediction":
                 if patient_name_p:
                     add_diagnosis(0, "Parkinson's Disease", result, confidence)
 
-                report = generate_report(
-                    patient_name_p or "Unknown", "Parkinson's Disease",
-                    result, confidence, sorted_features,
-                    st.session_state.username
+                pdf_data = generate_pdf_report(
+                    patient_name_d or "Unknown",
+                    "Parkinsons", result, confidence,
+                    sorted_features,
+                    st.session_state.username,
+                    ""
                 )
                 st.download_button(
-                    "📥 Download Report", data=report,
-                    file_name=f"parkinsons_report_{time.strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain", key="p_download"
+                    "📥 Download PDF Report",
+                    data=pdf_data,
+                    file_name=f"parkinsons_report_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    key="d_download"
                 )
 
                 st.markdown("<hr>", unsafe_allow_html=True)
@@ -1375,8 +1708,12 @@ elif page == "📅  Appointments":
             )
 
         st.markdown("<br>", unsafe_allow_html=True)
+        apt_email = st.text_input(
+            "Patient Email (for confirmation)",
+            key="apt_email"
+        )
         if st.button("📅 Book Appointment",
-                     use_container_width=True, key="book_apt"):
+                    use_container_width=True, key="book_apt"):
             if apt_patient:
                 add_appointment(
                     apt_patient, apt_doctor, apt_dept,
@@ -1388,6 +1725,15 @@ elif page == "📅  Appointments":
                 **Doctor:** {apt_doctor}
                 **Date:** {apt_date} at {apt_time}
                 """)
+                if apt_email:
+                    sent = appointment_email(
+                        apt_patient, apt_doctor,
+                        str(apt_date), apt_time, apt_email
+                    )
+                    if sent:
+                        st.success(f"📧 Confirmation email sent to {apt_email}!")
+                    else:
+                        st.info("📧 Email not configured — add EMAIL_USER and EMAIL_PASSWORD to .env")
             else:
                 st.warning("Please enter patient name!")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -1533,3 +1879,65 @@ Report:
         </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Settings ──────────────────────────────────
+elif page == "⚙️  Settings":
+    from database import update_user_email, get_user_email
+    st.markdown(f"""
+    <div class='nav-bar'>
+        <div>
+            <div style='font-size:20px; font-weight:700; color:{text}'>
+                Account Settings
+            </div>
+            <div style='font-size:13px; color:{subtext}'>
+                Manage your profile and preferences
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    tab1, tab2 = st.tabs(["👤  Profile", "🔔  Notifications"])
+
+    with tab1:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### Update Profile")
+        st.markdown(f"""
+        <div style='background:{card_bg}; padding:15px;
+                    border-radius:8px; border-left:4px solid #0066CC;
+                    margin-bottom:20px'>
+            <p style='margin:0; color:{text}'><b>Username:</b>
+                {st.session_state.username}</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        current_email = get_user_email(st.session_state.username)
+        new_email = st.text_input(
+            "Email Address",
+            value=current_email or "",
+            placeholder="Enter your email for notifications"
+        )
+        if st.button("💾 Save Email", use_container_width=True):
+            if new_email:
+                update_user_email(st.session_state.username, new_email)
+                st.success("✅ Email saved successfully!")
+            else:
+                st.warning("Please enter an email address!")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab2:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### Email Notifications")
+        st.info("""
+        📧 Email notifications will be sent for:
+        - Appointment confirmations
+        - Diagnosis results
+        - Important health alerts
+
+        Add your email in the Profile tab to enable notifications.
+        """)
+        email = get_user_email(st.session_state.username)
+        if email:
+            st.success(f"✅ Notifications enabled for: **{email}**")
+        else:
+            st.warning("⚠️ Add your email in Profile tab to enable notifications!")
+        st.markdown("</div>", unsafe_allow_html=True)
