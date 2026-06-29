@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from collections import Counter
 import streamlit as st
+# mediscan AI v2.0 - Analytics, PDF Reports, Email Notifications
 from database import init_db
 init_db()
 
