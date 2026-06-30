@@ -188,3 +188,16 @@ def get_user_email(username):
     if result.data and result.data[0]["email"]:
         return result.data[0]["email"]
     return None
+
+def get_all_doctors():
+    result = supabase.table("doctors").select("*").eq(
+        "available", True
+    ).execute()
+    return pd.DataFrame(result.data)
+
+def add_doctor(name, specialization, experience):
+    supabase.table("doctors").insert({
+        "name": name,
+        "specialization": specialization,
+        "experience": experience
+    }).execute()
