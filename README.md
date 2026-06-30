@@ -13,8 +13,7 @@
 ---
 
 ## 🌟 Live Demo
-
-🚀 **https://mediscan-ai-123.streamlit.app/**
+🚀 **[Live App](https://mediscan-ai-tkuv.onrender.com)**
 
 ---
 
@@ -114,21 +113,46 @@ are explainable — critical for medical applications.
 * Dark/Light mode
 * Clean, professional interface
 
+### 📊 Analytics Dashboard
+- Disease distribution pie chart
+- Positive vs negative case statistics
+- Recent patients and diagnoses tracking
+- Appointment status distribution
+
+### 📧 Email Notifications
+- Automated appointment confirmation emails
+- Diagnosis result notifications
+- Professional HTML email templates
+
+### 📄 Professional PDF Reports
+- Hospital-style letterhead diagnosis reports
+- Includes AI feature importance breakdown
+- Downloadable clinical documentation
+
+### ☁️ Cloud Database
+- Migrated from SQLite to Supabase PostgreSQL
+- Real persistent cloud database
+- Deployed on Render with always-accessible data
+
 ---
 
 ## 🛠️ Tech Stack
 
-| Category         | Technology                       |
-| ---------------- | -------------------------------- |
-| Frontend         | Streamlit, Plotly, Custom CSS    |
-| Backend          | Python, SQLite, SQLAlchemy       |
-| Machine Learning | Scikit-learn, Random Forest, SVM |
-| Generative AI    | Google Gemini 2.5, LangChain     |
-| Data Processing  | Pandas, NumPy                    |
-| Security         | SHA-256 Hashing                  |
-| Deployment       | Streamlit Cloud                  |
-| Version Control  | Git, GitHub                      |
+## 🛠️ Tech Stack
 
+| Category            |    Technology                                   |
+|-------------------  |-----------------------------------------------  |
+| Frontend            | Streamlit, Plotly, Custom CSS                   |
+| Backend             | Python                                          |
+| Database            | Supabase PostgreSQL (Cloud)                     |
+| Machine Learning    | Scikit-learn, Random Forest, Feature Importance |
+| Generative AI       | Google Gemini 2.5 API                           |
+| Data Processing     | Pandas, NumPy                                   |
+| PDF Generation      | FPDF2                                           |
+| Email Service       | SMTP (Gmail), smtplib                           |
+| Security            | SHA-256 Hashing, Session Management             |
+| Hosting             | Render                                          |
+| Version Control     | Git, GitHub                                     |
 ---
 
 ## 📁 Project Structure
