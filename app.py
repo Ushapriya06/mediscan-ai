@@ -1689,13 +1689,13 @@ elif page == "📅  Appointments":
             apt_doctor = st.selectbox("Doctor", [
                 "Dr. Rajesh Kumar — Cardiologist",
                 "Dr. Priya Sharma — Diabetologist",
-                "Dr. Anil Mehta — General Physician",
+                "Dr. Anil Mehta — Nephrologist",
                 "Dr. Sunita Rao — Neurologist",
-                "Dr. Vikram Singh — Pulmonologist"
+                "Dr. Vikram Singh — Hepatologist"
             ], key="apt_doctor")
             apt_dept = st.selectbox("Department", [
                 "Cardiology", "Diabetology",
-                "General Medicine", "Neurology", "Pulmonology"
+                "Nephrology", "Neurology", "Hepatology"
             ], key="apt_dept")
         with col2:
             apt_date = st.date_input("Appointment Date", key="apt_date")
