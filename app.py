@@ -152,70 +152,183 @@ if not st.session_state.logged_in:
                 <h2 style='color:{text}; margin:0; font-size:24px'>
                     MediScan AI
                 </h2>
-                <p style='color:{subtext}; margin:8px 0 0 0; font-size:14px'>
+                <p style='color:{subtext}; margin:4px 0 0 0; font-size:13px'>
                     Medical Intelligence Platform
                 </p>
             </div>
         """, unsafe_allow_html=True)
 
-        tab_login, tab_register = st.tabs(["🔑 Login", "📝 Register"])
+        tab_login, tab_register = st.tabs(["🔑 Sign In", "📝 Create Account"])
 
         with tab_login:
             st.markdown("<br>", unsafe_allow_html=True)
-            username = st.text_input("Username",
-                placeholder="Enter username", key="login_user")
-            password = st.text_input("Password", type="password",
-                placeholder="Enter password", key="login_pass")
+            login_username = st.text_input(
+                "Username",
+                placeholder="Enter your username",
+                key="login_user"
+            )
+            login_password = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Enter your password",
+                key="login_pass"
+            )
+            remember_me = st.checkbox("Remember me", key="remember")
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Sign In", use_container_width=True, key="signin"):
-                if username and password:
-                    from database import verify_user
-                    if verify_user(username, password):
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        st.rerun()
+
+            if st.button("Sign In →", use_container_width=True,
+                        key="signin"):
+                if login_username and login_password:
+                    if len(login_password) < 6:
+                        st.error("Password must be at least 6 characters!")
                     else:
-                        st.error("Invalid username or password!")
+                        from database import verify_user
+                        user = verify_user(login_username, login_password)
+                        if user:
+                            st.session_state.logged_in = True
+                            st.session_state.username = login_username
+                            st.session_state.user_role = user.get("role", "doctor")
+                            st.session_state.full_name = user.get("full_name", login_username)
+                            st.rerun()
+                        else:
+                            st.error("❌ Invalid username or password!")
                 else:
-                    st.error("Please enter credentials!")
+                    st.error("Please enter both username and password!")
+
             st.markdown(f"""
-            <p style='color:{subtext}; font-size:12px; text-align:center'>
-            Default: <b>admin</b> / <b>admin123</b>
+            <p style='color:{subtext}; font-size:12px;
+                      text-align:center; margin-top:16px'>
+            Demo: <b>admin</b> / <b>admin123</b>
             </p>
             """, unsafe_allow_html=True)
 
         with tab_register:
             st.markdown("<br>", unsafe_allow_html=True)
-            new_user = st.text_input("Username",
-                placeholder="Choose username", key="reg_user")
-            new_pass = st.text_input("Password", type="password",
-                placeholder="Min 6 characters", key="reg_pass")
-            confirm_pass = st.text_input("Confirm Password",
-                type="password", key="reg_confirm")
-            role = st.selectbox("Role",
-                ["doctor", "nurse", "admin"], key="reg_role")
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Create Account",
-                        use_container_width=True, key="register"):
-                if new_user and new_pass and confirm_pass:
-                    if new_pass != confirm_pass:
-                        st.error("Passwords don't match!")
-                    elif len(new_pass) < 6:
-                        st.error("Min 6 characters!")
-                    else:
-                        from database import create_user
-                        if create_user(new_user, new_pass, role):
-                            st.success("Account created! Login now.")
-                        else:
-                            st.error("Username already exists!")
+            reg_fullname = st.text_input(
+                "Full Name",
+                placeholder="Dr. Your Name",
+                key="reg_fullname"
+            )
+            reg_username = st.text_input(
+                "Username",
+                placeholder="Choose a username",
+                key="reg_user"
+            )
+            reg_email = st.text_input(
+                "Email Address",
+                placeholder="your@email.com",
+                key="reg_email"
+            )
+            reg_phone = st.text_input(
+                "Phone Number",
+                placeholder="+91 XXXXX XXXXX",
+                key="reg_phone"
+            )
+            reg_role = st.selectbox(
+                "Role",
+                ["doctor", "nurse", "admin"],
+                key="reg_role"
+            )
+            reg_pass = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Minimum 8 characters",
+                key="reg_pass"
+            )
+            reg_confirm = st.text_input(
+                "Confirm Password",
+                type="password",
+                placeholder="Repeat your password",
+                key="reg_confirm"
+            )
+
+            # Password strength indicator
+            if reg_pass:
+                strength = 0
+                tips = []
+                if len(reg_pass) >= 8:
+                    strength += 1
                 else:
-                    st.error("Fill all fields!")
+                    tips.append("at least 8 characters")
+                if any(c.isupper() for c in reg_pass):
+                    strength += 1
+                else:
+                    tips.append("one uppercase letter")
+                if any(c.isdigit() for c in reg_pass):
+                    strength += 1
+                else:
+                    tips.append("one number")
+                if any(c in "!@#$%^&*" for c in reg_pass):
+                    strength += 1
+                else:
+                    tips.append("one special character")
+
+                colors = ["#E74C3C", "#E67E22", "#F1C40F", "#27AE60"]
+                labels = ["Weak", "Fair", "Good", "Strong"]
+                st.markdown(f"""
+                <div style='margin:8px 0'>
+                    <div style='display:flex; gap:4px; margin-bottom:4px'>
+                        {''.join([f"<div style='height:4px; flex:1; border-radius:2px; background:{colors[min(strength-1,3)] if i < strength else '#E0E0E0'}'></div>" for i in range(4)])}
+                    </div>
+                    <span style='font-size:12px; color:{colors[min(strength-1,3)] if strength > 0 else "#E0E0E0"}'>
+                        {'Password strength: ' + labels[min(strength-1,3)] if strength > 0 else ''}
+                        {' — Add: ' + ', '.join(tips) if tips else ' ✅'}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            terms = st.checkbox(
+                "I agree to the Terms of Service and Privacy Policy",
+                key="terms"
+            )
+
+            if st.button("Create Account →",
+                        use_container_width=True, key="register"):
+                errors = []
+                if not reg_fullname:
+                    errors.append("Full name is required")
+                if not reg_username:
+                    errors.append("Username is required")
+                elif len(reg_username) < 3:
+                    errors.append("Username must be at least 3 characters")
+                if not reg_email or "@" not in reg_email:
+                    errors.append("Valid email is required")
+                if not reg_pass:
+                    errors.append("Password is required")
+                elif len(reg_pass) < 8:
+                    errors.append("Password must be at least 8 characters")
+                elif reg_pass != reg_confirm:
+                    errors.append("Passwords do not match")
+                if not terms:
+                    errors.append("Please accept terms and conditions")
+
+                if errors:
+                    for e in errors:
+                        st.error(f"❌ {e}")
+                else:
+                    from database import (create_user, username_exists,
+                                         email_exists)
+                    if username_exists(reg_username):
+                        st.error("❌ Username already taken!")
+                    elif email_exists(reg_email):
+                        st.error("❌ Email already registered!")
+                    else:
+                        success, msg = create_user(
+                            reg_username, reg_pass, reg_role,
+                            reg_fullname, reg_email, reg_phone
+                        )
+                        if success:
+                            st.success(f"✅ {msg} Please sign in!")
+                        else:
+                            st.error(f"❌ {msg}")
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown(f"""
         <p style='text-align:center; color:{subtext};
                   font-size:12px; margin-top:16px'>
-            🔒 HIPAA Compliant | Secure Medical Platform
+            🔒 HIPAA Compliant | Secure Medical Platform | SHA-256 Encrypted
         </p>
         """, unsafe_allow_html=True)
     st.stop()
@@ -1664,6 +1777,11 @@ elif page == "👥  Patient Management":
 
 # ── Appointments ───────────────────────────────
 elif page == "📅  Appointments":
+    from database import (get_all_doctors, get_booked_slots,
+                          add_appointment, get_all_appointments,
+                          update_appointment_status, cancel_appointment)
+    import datetime as dt
+
     st.markdown(f"""
     <div class='nav-bar'>
         <div>
@@ -1671,87 +1789,325 @@ elif page == "📅  Appointments":
                 Appointment Booking
             </div>
             <div style='font-size:13px; color:{subtext}'>
-                Schedule and manage patient appointments
+                Book and manage patient appointments
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["📅  Book Appointment", "📋  All Appointments"])
+    tab1, tab2, tab3 = st.tabs([
+        "📅 Book Appointment",
+        "📋 All Appointments",
+        "🔍 Find My Appointment"
+    ])
 
     with tab1:
         st.markdown("<div class='section-card'>", unsafe_allow_html=True)
-        st.markdown("#### Book New Appointment")
-        st.markdown("<br>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            apt_patient = st.text_input("Patient Name", key="apt_patient")
-            apt_doctor = st.selectbox("Doctor", [
-                "Dr. Rajesh Kumar — Cardiologist",
-                "Dr. Priya Sharma — Diabetologist",
-                "Dr. Anil Mehta — Nephrologist",
-                "Dr. Sunita Rao — Neurologist",
-                "Dr. Vikram Singh — Hepatologist"
-            ], key="apt_doctor")
-            apt_dept = st.selectbox("Department", [
-                "Cardiology", "Diabetology",
-                "Nephrology", "Neurology", "Hepatology"
-            ], key="apt_dept")
-        with col2:
-            apt_date = st.date_input("Appointment Date", key="apt_date")
-            apt_time = st.selectbox("Time Slot", [
-                "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-                "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM",
-                "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"
-            ], key="apt_time")
-            apt_reason = st.text_area(
-                "Reason for Visit", key="apt_reason", height=100
+        st.markdown("#### 👨‍⚕️ Select Doctor")
+
+        doctors_df = get_all_doctors()
+        if len(doctors_df) == 0:
+            st.warning("No doctors available!")
+        else:
+            # Doctor cards
+            cols = st.columns(3)
+            selected_doctor_id = st.session_state.get(
+                "selected_doctor_id", None
+            )
+            selected_doctor_name = st.session_state.get(
+                "selected_doctor_name", None
+            )
+            selected_dept = st.session_state.get(
+                "selected_dept", None
             )
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        apt_email = st.text_input(
-            "Patient Email (for confirmation)",
-            key="apt_email"
-        )
-        if st.button("📅 Book Appointment",
-                    use_container_width=True, key="book_apt"):
-            if apt_patient:
-                add_appointment(
-                    apt_patient, apt_doctor, apt_dept,
-                    str(apt_date), apt_time, apt_reason
-                )
-                st.success(f"""
-                ✅ Appointment booked!
-                **Patient:** {apt_patient}
-                **Doctor:** {apt_doctor}
-                **Date:** {apt_date} at {apt_time}
-                """)
-                if apt_email:
-                    sent = appointment_email(
-                        apt_patient, apt_doctor,
-                        str(apt_date), apt_time, apt_email
+            for i, (_, doc) in enumerate(doctors_df.iterrows()):
+                with cols[i % 3]:
+                    is_selected = selected_doctor_id == doc["id"]
+                    border_color = "#0066CC" if is_selected else border
+                    st.markdown(f"""
+                    <div style='border:2px solid {border_color};
+                                border-radius:12px; padding:15px;
+                                background:{card_bg}; margin-bottom:10px;
+                                cursor:pointer'>
+                        <div style='font-size:20px; text-align:center'>
+                            👨‍⚕️
+                        </div>
+                        <div style='font-weight:600; color:{text};
+                                    font-size:14px; text-align:center'>
+                            {doc['name']}
+                        </div>
+                        <div style='color:#0066CC; font-size:12px;
+                                    text-align:center'>
+                            {doc['specialization']}
+                        </div>
+                        <div style='color:{subtext}; font-size:11px;
+                                    text-align:center'>
+                            {doc['experience']} years exp.
+                        </div>
+                        <div style='color:{subtext}; font-size:10px;
+                                    text-align:center; margin-top:4px'>
+                            {doc.get('qualification', '')}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button(
+                        "✅ Selected" if is_selected else "Select",
+                        key=f"doc_{doc['id']}",
+                        use_container_width=True
+                    ):
+                        st.session_state.selected_doctor_id = int(doc["id"])
+                        st.session_state.selected_doctor_name = doc["name"]
+                        st.session_state.selected_dept = doc["specialization"]
+                        st.rerun()
+
+            if selected_doctor_id:
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown(f"#### 📅 Book with {selected_doctor_name}")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    apt_patient = st.text_input(
+                        "Patient Full Name *",
+                        placeholder="Enter patient name",
+                        key="apt_patient"
                     )
-                    if sent:
-                        st.success(f"📧 Confirmation email sent to {apt_email}!")
+                    apt_email = st.text_input(
+                        "Patient Email",
+                        placeholder="For confirmation email",
+                        key="apt_email"
+                    )
+                    apt_phone = st.text_input(
+                        "Patient Phone",
+                        placeholder="+91 XXXXX XXXXX",
+                        key="apt_phone"
+                    )
+
+                with col2:
+                    min_date = dt.date.today() + dt.timedelta(days=1)
+                    max_date = dt.date.today() + dt.timedelta(days=30)
+                    apt_date = st.date_input(
+                        "Appointment Date *",
+                        min_value=min_date,
+                        max_value=max_date,
+                        key="apt_date"
+                    )
+
+                    # Get booked slots
+                    booked = get_booked_slots(selected_doctor_id, apt_date)
+                    all_slots = [
+                        "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+                        "11:00 AM", "11:30 AM", "12:00 PM",
+                        "02:00 PM", "02:30 PM", "03:00 PM",
+                        "03:30 PM", "04:00 PM", "04:30 PM"
+                    ]
+                    available_slots = [
+                        s for s in all_slots if s not in booked
+                    ]
+
+                    if available_slots:
+                        st.markdown(f"""
+                        <p style='color:{subtext}; font-size:12px'>
+                        ✅ {len(available_slots)} slots available on {apt_date}
+                        </p>
+                        """, unsafe_allow_html=True)
+                        apt_time = st.selectbox(
+                            "Available Time Slots *",
+                            available_slots,
+                            key="apt_time"
+                        )
                     else:
-                        st.info("📧 Email not configured — add EMAIL_USER and EMAIL_PASSWORD to .env")
-            else:
-                st.warning("Please enter patient name!")
+                        st.error("❌ No slots available on this date!")
+                        apt_time = None
+
+                    # Show booked slots
+                    if booked:
+                        st.markdown(f"""
+                        <p style='color:#E74C3C; font-size:11px'>
+                        🔴 Booked: {', '.join(booked)}
+                        </p>
+                        """, unsafe_allow_html=True)
+
+                apt_reason = st.text_area(
+                    "Reason for Visit",
+                    placeholder="Describe symptoms or reason...",
+                    height=80,
+                    key="apt_reason"
+                )
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button(
+                    "📅 Confirm Appointment",
+                    use_container_width=True,
+                    key="book_apt"
+                ):
+                    if apt_patient and apt_time:
+                        booking_id = add_appointment(
+                            apt_patient,
+                            selected_doctor_id,
+                            selected_doctor_name,
+                            selected_dept,
+                            apt_date,
+                            apt_time,
+                            apt_reason,
+                            apt_email,
+                            apt_phone
+                        )
+                        st.success(f"""
+                        ✅ **Appointment Confirmed!**
+
+                        🎫 **Booking ID: {booking_id}**
+                        👤 Patient: {apt_patient}
+                        👨‍⚕️ Doctor: {selected_doctor_name}
+                        🏥 Department: {selected_dept}
+                        📅 Date: {apt_date}
+                        ⏰ Time: {apt_time}
+
+                        *Save your Booking ID for reference*
+                        """)
+                        if apt_email:
+                            sent = appointment_email(
+                                apt_patient,
+                                selected_doctor_name,
+                                str(apt_date),
+                                apt_time,
+                                apt_email
+                            )
+                            if sent:
+                                st.info(f"📧 Confirmation sent to {apt_email}")
+                        # Clear selection
+                        st.session_state.selected_doctor_id = None
+                        st.session_state.selected_doctor_name = None
+                        st.session_state.selected_dept = None
+                    else:
+                        st.warning("Please fill patient name and select a time slot!")
+
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tab2:
         st.markdown("<div class='section-card'>", unsafe_allow_html=True)
-        st.markdown("#### All Appointments")
+        st.markdown("#### 📋 All Appointments")
+
         df_apt = get_all_appointments()
         if len(df_apt) > 0:
-            st.dataframe(df_apt, use_container_width=True, height=400)
+            # Filter options
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                status_filter = st.selectbox(
+                    "Filter by Status",
+                    ["All", "Scheduled", "Completed", "Cancelled"],
+                    key="apt_status_filter"
+                )
+            with col2:
+                doctor_filter = st.selectbox(
+                    "Filter by Doctor",
+                    ["All"] + list(df_apt["doctor"].unique()),
+                    key="apt_doctor_filter"
+                )
+            with col3:
+                search_apt = st.text_input(
+                    "Search patient",
+                    placeholder="Patient name...",
+                    key="apt_search"
+                )
+
+            filtered = df_apt.copy()
+            if status_filter != "All":
+                filtered = filtered[
+                    filtered["status"] == status_filter
+                ]
+            if doctor_filter != "All":
+                filtered = filtered[
+                    filtered["doctor"] == doctor_filter
+                ]
+            if search_apt:
+                filtered = filtered[
+                    filtered["patient_name"].str.contains(
+                        search_apt, case=False, na=False
+                    )
+                ]
+
+            st.dataframe(filtered, use_container_width=True, height=400)
             st.markdown(f"""
             <p style='color:{subtext}; font-size:13px'>
-                Total: {len(df_apt)} appointments
+                Showing {len(filtered)} of {len(df_apt)} appointments
             </p>
             """, unsafe_allow_html=True)
+
+            # Update status
+            st.markdown("#### ✏️ Update Appointment Status")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                apt_id = st.number_input(
+                    "Appointment ID", min_value=1, key="apt_id_update"
+                )
+            with col2:
+                new_status = st.selectbox(
+                    "New Status",
+                    ["Scheduled", "Completed", "Cancelled"],
+                    key="new_status"
+                )
+            with col3:
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("Update", use_container_width=True,
+                            key="update_apt"):
+                    update_appointment_status(apt_id, new_status)
+                    st.success("✅ Status updated!")
+                    st.rerun()
         else:
-            st.info("No appointments scheduled yet!")
+            st.info("No appointments yet!")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab3:
+        st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+        st.markdown("#### 🔍 Find My Appointment")
+        booking_search = st.text_input(
+            "Enter Booking ID",
+            placeholder="e.g. AB12CD34",
+            key="booking_search"
+        )
+        if booking_search:
+            df_apt = get_all_appointments()
+            if len(df_apt) > 0:
+                match = df_apt[
+                    df_apt["booking_id"] == booking_search.upper()
+                ]
+                if len(match) > 0:
+                    row = match.iloc[0]
+                    status_color = {
+                        "Scheduled": "#3498DB",
+                        "Completed": "#27AE60",
+                        "Cancelled": "#E74C3C"
+                    }.get(row["status"], "#666")
+                    st.markdown(f"""
+                    <div style='background:{card_bg}; padding:24px;
+                                border-radius:12px;
+                                border-left:4px solid #0066CC'>
+                        <h3 style='color:{text}'>Appointment Details</h3>
+                        <p><b>🎫 Booking ID:</b> {row['booking_id']}</p>
+                        <p><b>👤 Patient:</b> {row['patient_name']}</p>
+                        <p><b>👨‍⚕️ Doctor:</b> {row['doctor']}</p>
+                        <p><b>🏥 Department:</b> {row['department']}</p>
+                        <p><b>📅 Date:</b> {row['date']}</p>
+                        <p><b>⏰ Time:</b> {row['time']}</p>
+                        <p><b>📝 Reason:</b> {row.get('reason', 'N/A')}</p>
+                        <p><b>Status:</b>
+                            <span style='color:{status_color};
+                                         font-weight:600'>
+                                ● {row['status']}
+                            </span>
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    if row["status"] == "Scheduled":
+                        if st.button("❌ Cancel Appointment",
+                                    key="cancel_apt"):
+                            cancel_appointment(booking_search.upper())
+                            st.success("Appointment cancelled!")
+                            st.rerun()
+                else:
+                    st.error("❌ Booking ID not found!")
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Medication Suggestions ─────────────────────
