@@ -11,3 +11,5 @@ PyPDF2
 shap
 sqlalchemy
 supabase
+fpdf2
+python-docx
