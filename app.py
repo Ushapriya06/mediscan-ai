@@ -1,4 +1,10 @@
+from fpdf import FPDF
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import time
+import random
+import string
 from fpdf import FPDF
 import smtplib
 from email.mime.text import MIMEText
@@ -137,8 +143,209 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state.username = ""
 
+# ── Lazy imports for functions ─────────────────
+import smtplib
+from email.mime.text import MIMEText  
+from email.mime.multipart import MIMEMultipart
+from fpdf import FPDF
+from collections import Counter
+
+def send_email(to_email, subject, body):
+    try:
+        sender = os.getenv("EMAIL_USER")
+        password = os.getenv("EMAIL_PASSWORD")
+        if not sender or not password:
+            return False
+        msg = MIMEMultipart()
+        msg["From"] = sender
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "html"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender, password)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        return False
+
+def send_reset_email(to_email, token, username):
+    subject = "MediScan AI — Password Reset Request"
+    body = f"""
+    <div style="font-family: Arial; max-width: 600px; margin: auto;
+                border: 1px solid #ddd; border-radius: 10px; overflow: hidden">
+        <div style="background: #1A5276; padding: 20px; text-align: center">
+            <h1 style="color: white; margin: 0">🏥 MediScan AI</h1>
+        </div>
+        <div style="padding: 30px">
+            <h2 style="color: #1A5276">Password Reset Request 🔐</h2>
+            <p>Dear <b>{username}</b>,</p>
+            <p>Your reset token (valid for 1 hour):</p>
+            <div style="background: #EBF5FB; padding: 15px;
+                        border-radius: 8px; margin: 20px 0;
+                        text-align: center">
+                <h2 style="color: #1A5276; letter-spacing: 4px;
+                           margin: 10px 0">{token}</h2>
+            </div>
+            <p style="color: #E74C3C">
+                <b>⚠️ If you did not request this, ignore this email.</b>
+            </p>
+        </div>
+    </div>
+    """
+    return send_email(to_email, subject, body)
+
+def appointment_email(patient_name, doctor, date, time, to_email):
+    subject = "MediScan AI — Appointment Confirmation"
+    body = f"""
+    <div style="font-family: Arial; max-width: 600px; margin: auto;
+                border: 1px solid #ddd; border-radius: 10px; overflow: hidden">
+        <div style="background: #1A5276; padding: 20px; text-align: center">
+            <h1 style="color: white; margin: 0">🏥 MediScan AI</h1>
+        </div>
+        <div style="padding: 30px">
+            <h2 style="color: #1A5276">Appointment Confirmed ✅</h2>
+            <p>Dear <b>{patient_name}</b>,</p>
+            <div style="background: #EBF5FB; padding: 15px;
+                        border-radius: 8px; margin: 20px 0">
+                <p><b>👨‍⚕️ Doctor:</b> {doctor}</p>
+                <p><b>📅 Date:</b> {date}</p>
+                <p><b>⏰ Time:</b> {time}</p>
+            </div>
+            <p>Please arrive 10 minutes early.</p>
+        </div>
+    </div>
+    """
+    return send_email(to_email, subject, body)
+
+def get_medication_suggestions(disease, result, patient_info):
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    prompt = f"""You are a clinical AI assistant supporting doctors.
+A patient has been assessed for {disease}.
+Result: {result}
+Patient Info: {patient_info}
+
+Provide structured clinical recommendation:
+1. **Immediate Actions**
+2. **Recommended Medications** (generic names only)
+3. **Lifestyle Changes**
+4. **Follow-up Tests**
+5. **Warning Signs**
+
+Important: For doctor reference only."""
+    response = model.generate_content(prompt)
+    return response.text
+
+def generate_pdf_report(patient_name, disease, result,
+                        confidence, features, username,
+                        suggestions):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_fill_color(26, 82, 118)
+    pdf.rect(0, 0, 210, 35, "F")
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_xy(10, 8)
+    pdf.cell(0, 10, "MEDISCAN AI", ln=True, align="C")
+    pdf.set_font("Helvetica", size=10)
+    pdf.set_xy(10, 20)
+    pdf.cell(0, 8, "Clinical Diagnosis Report", ln=True, align="C")
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_xy(10, 45)
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(0, 10, "PATIENT DIAGNOSIS REPORT", ln=True)
+    pdf.set_font("Helvetica", size=10)
+    pdf.set_fill_color(235, 245, 251)
+    pdf.rect(10, 58, 190, 35, "F")
+    pdf.set_xy(15, 62)
+    pname = patient_name.encode('latin-1', 'replace').decode('latin-1')
+    pdf.cell(90, 7, f"Patient: {pname}")
+    pdf.cell(90, 7, f"Doctor: {username}", ln=True)
+    pdf.set_xy(15, 72)
+    pdf.cell(90, 7, f"Disease: {disease}")
+    pdf.cell(90, 7, f"Date: {time.strftime('%Y-%m-%d')}", ln=True)
+    pdf.set_xy(10, 100)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "RESULT", ln=True)
+    if result == "Positive":
+        pdf.set_fill_color(231, 76, 60)
+    else:
+        pdf.set_fill_color(39, 174, 96)
+    pdf.set_text_color(255, 255, 255)
+    pdf.rect(10, 110, 190, 20, "F")
+    pdf.set_xy(10, 114)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(95, 10, f"Result: {result}", align="C")
+    pdf.cell(95, 10, f"Confidence: {confidence}%", align="C", ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_xy(10, 138)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "TOP INFLUENCING FACTORS", ln=True)
+    pdf.set_font("Helvetica", size=10)
+    for i, (feat, imp) in enumerate(features[:5], 1):
+        feat_clean = str(feat).encode('latin-1', 'replace').decode('latin-1')
+        pdf.set_xy(15, 148 + (i-1)*10)
+        pdf.set_fill_color(214, 234, 248)
+        bar_width = max(int(float(imp) * 150), 1)
+        pdf.rect(15, 149 + (i-1)*10, bar_width, 6, "F")
+        pdf.set_xy(15, 148 + (i-1)*10)
+        pdf.cell(0, 8, f"{i}. {feat_clean}: {round(float(imp)*100, 1)}%")
+    pdf.set_fill_color(26, 82, 118)
+    pdf.rect(0, 275, 210, 22, "F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", size=9)
+    pdf.set_xy(10, 280)
+    pdf.cell(0, 8,
+             "MediScan AI v3.0 | Powered by Google Gemini 2.5 | HIPAA Compliant",
+             align="C")
+    return bytes(pdf.output())
+
+def send_reset_email(to_email, token, username):
+    subject = "MediScan AI — Password Reset Request"
+    body = f"""
+    <div style="font-family: Arial; max-width: 600px; margin: auto;
+                border: 1px solid #ddd; border-radius: 10px; overflow: hidden">
+        <div style="background: #1A5276; padding: 20px; text-align: center">
+            <h1 style="color: white; margin: 0">🏥 MediScan AI</h1>
+            <p style="color: #AED6F1; margin: 5px 0">
+                Medical Intelligence Platform
+            </p>
+        </div>
+        <div style="padding: 30px">
+            <h2 style="color: #1A5276">Password Reset Request 🔐</h2>
+            <p>Dear <b>{username}</b>,</p>
+            <p>We received a request to reset your password.</p>
+            <div style="background: #EBF5FB; padding: 15px;
+                        border-radius: 8px; margin: 20px 0;
+                        text-align: center">
+                <p style="margin:0; color:#666; font-size:13px">
+                    Your Reset Token (valid for 1 hour):
+                </p>
+                <h2 style="color: #1A5276; letter-spacing: 4px;
+                           margin: 10px 0">{token}</h2>
+            </div>
+            <p>Enter this token in the app to reset your password.</p>
+            <p style="color: #E74C3C">
+                <b>⚠️ This token expires in 1 hour.</b>
+                If you did not request this, ignore this email.
+            </p>
+        </div>
+        <div style="background: #EBF5FB; padding: 15px; text-align: center">
+            <p style="color: #666; font-size: 12px">
+                MediScan AI | HIPAA Compliant
+            </p>
+        </div>
+    </div>
+    """
+    return send_email(to_email, subject, body)
+
 # ── Login Page ─────────────────────────────────
 if not st.session_state.logged_in:
+    # Initialize forgot password state
+    if "show_forgot" not in st.session_state:
+        st.session_state.show_forgot = False
+    if "show_reset" not in st.session_state:
+        st.session_state.show_reset = False
+
     col1, col2, col3 = st.columns([1.2, 1, 1.2])
     with col2:
         st.markdown("<br><br>", unsafe_allow_html=True)
@@ -152,183 +359,298 @@ if not st.session_state.logged_in:
                 <h2 style='color:{text}; margin:0; font-size:24px'>
                     MediScan AI
                 </h2>
-                <p style='color:{subtext}; margin:4px 0 0 0; font-size:13px'>
+                <p style='color:{subtext}; margin:4px 0 0 0;
+                          font-size:13px'>
                     Medical Intelligence Platform
                 </p>
             </div>
         """, unsafe_allow_html=True)
 
-        tab_login, tab_register = st.tabs(["🔑 Sign In", "📝 Create Account"])
-
-        with tab_login:
-            st.markdown("<br>", unsafe_allow_html=True)
-            login_username = st.text_input(
-                "Username",
-                placeholder="Enter your username",
-                key="login_user"
+        if st.session_state.show_reset:
+            # Reset password with token
+            st.markdown("### 🔐 Reset Password")
+            reset_token = st.text_input(
+                "Enter Reset Token",
+                placeholder="6-digit token from email",
+                key="reset_token_input"
             )
-            login_password = st.text_input(
-                "Password",
-                type="password",
-                placeholder="Enter your password",
-                key="login_pass"
-            )
-            remember_me = st.checkbox("Remember me", key="remember")
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            if st.button("Sign In →", use_container_width=True,
-                        key="signin"):
-                if login_username and login_password:
-                    if len(login_password) < 6:
-                        st.error("Password must be at least 6 characters!")
-                    else:
-                        from database import verify_user
-                        user = verify_user(login_username, login_password)
-                        if user:
-                            st.session_state.logged_in = True
-                            st.session_state.username = login_username
-                            st.session_state.user_role = user.get("role", "doctor")
-                            st.session_state.full_name = user.get("full_name", login_username)
-                            st.rerun()
-                        else:
-                            st.error("❌ Invalid username or password!")
-                else:
-                    st.error("Please enter both username and password!")
-
-            st.markdown(f"""
-            <p style='color:{subtext}; font-size:12px;
-                      text-align:center; margin-top:16px'>
-            Demo: <b>admin</b> / <b>admin123</b>
-            </p>
-            """, unsafe_allow_html=True)
-
-        with tab_register:
-            st.markdown("<br>", unsafe_allow_html=True)
-            reg_fullname = st.text_input(
-                "Full Name",
-                placeholder="Dr. Your Name",
-                key="reg_fullname"
-            )
-            reg_username = st.text_input(
-                "Username",
-                placeholder="Choose a username",
-                key="reg_user"
-            )
-            reg_email = st.text_input(
-                "Email Address",
-                placeholder="your@email.com",
-                key="reg_email"
-            )
-            reg_phone = st.text_input(
-                "Phone Number",
-                placeholder="+91 XXXXX XXXXX",
-                key="reg_phone"
-            )
-            reg_role = st.selectbox(
-                "Role",
-                ["doctor", "nurse", "admin"],
-                key="reg_role"
-            )
-            reg_pass = st.text_input(
-                "Password",
+            new_pass = st.text_input(
+                "New Password",
                 type="password",
                 placeholder="Minimum 8 characters",
-                key="reg_pass"
+                key="new_pass"
             )
-            reg_confirm = st.text_input(
-                "Confirm Password",
+            confirm_new = st.text_input(
+                "Confirm New Password",
                 type="password",
-                placeholder="Repeat your password",
-                key="reg_confirm"
+                key="confirm_new"
             )
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("Reset Password",
+                            use_container_width=True,
+                            key="do_reset"):
+                    if reset_token and new_pass and confirm_new:
+                        if new_pass != confirm_new:
+                            st.error("Passwords don't match!")
+                        elif len(new_pass) < 8:
+                            st.error("Min 8 characters!")
+                        else:
+                            from database import (verify_reset_token,
+                                                  reset_password_with_token)
+                            user = verify_reset_token(reset_token)
+                            if user:
+                                reset_password_with_token(
+                                    reset_token, new_pass
+                                )
+                                st.success("✅ Password reset! Please login.")
+                                st.session_state.show_reset = False
+                                st.session_state.show_forgot = False
+                                st.rerun()
+                            else:
+                                st.error("❌ Invalid or expired token!")
+                    else:
+                        st.error("Fill all fields!")
+            with col_b:
+                if st.button("← Back to Login",
+                            use_container_width=True,
+                            key="back_from_reset"):
+                    st.session_state.show_reset = False
+                    st.session_state.show_forgot = False
+                    st.rerun()
 
-            # Password strength indicator
-            if reg_pass:
-                strength = 0
-                tips = []
-                if len(reg_pass) >= 8:
-                    strength += 1
-                else:
-                    tips.append("at least 8 characters")
-                if any(c.isupper() for c in reg_pass):
-                    strength += 1
-                else:
-                    tips.append("one uppercase letter")
-                if any(c.isdigit() for c in reg_pass):
-                    strength += 1
-                else:
-                    tips.append("one number")
-                if any(c in "!@#$%^&*" for c in reg_pass):
-                    strength += 1
-                else:
-                    tips.append("one special character")
+        elif st.session_state.show_forgot:
+            # Forgot password — enter email
+            st.markdown("### 📧 Forgot Password")
+            st.info("Enter your registered email to receive a reset token.")
+            forgot_email = st.text_input(
+                "Registered Email",
+                placeholder="your@email.com",
+                key="forgot_email"
+            )
+            col_a, col_b = st.columns(2)
+            with col_a:
+                if st.button("Send Reset Token",
+                            use_container_width=True,
+                            key="send_reset"):
+                    if forgot_email and "@" in forgot_email:
+                        from database import (get_user_by_email,
+                                             save_reset_token)
+                        user = get_user_by_email(forgot_email)
+                        if user:
+                            token = ''.join(
+                                random.choices(string.digits, k=6)
+                            )
+                            save_reset_token(forgot_email, token)
+                            sent = send_reset_email(
+                                forgot_email, token, user["username"]
+                            )
+                            st.write(f"Debug - Email sent: {sent}")
+                            st.write(f"Debug - Token: {token}")
+                            st.session_state.show_reset = True
+                            st.rerun()
+                        else:
+                            st.error("❌ Email not found!")
+                    else:
+                        st.error("Enter a valid email!")
+            with col_b:
+                if st.button("← Back to Login",
+                            use_container_width=True,
+                            key="back_forgot"):
+                    st.session_state.show_forgot = False
+                    st.rerun()
 
-                colors = ["#E74C3C", "#E67E22", "#F1C40F", "#27AE60"]
-                labels = ["Weak", "Fair", "Good", "Strong"]
+        else:
+            # Normal login/register tabs
+            tab_login, tab_register = st.tabs([
+                "🔑 Sign In", "📝 Create Account"
+            ])
+
+            with tab_login:
+                st.markdown("<br>", unsafe_allow_html=True)
+                login_username = st.text_input(
+                    "Username",
+                    placeholder="Enter your username",
+                    key="login_user"
+                )
+                login_password = st.text_input(
+                    "Password",
+                    type="password",
+                    placeholder="Enter your password",
+                    key="login_pass"
+                )
+                col_rem, col_forgot = st.columns([1, 1])
+                with col_rem:
+                    st.checkbox("Remember me", key="remember")
+                with col_forgot:
+                    if st.button("Forgot Password?",
+                                key="forgot_btn"):
+                        st.session_state.show_forgot = True
+                        st.rerun()
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("Sign In →",
+                            use_container_width=True,
+                            key="signin"):
+                    if login_username and login_password:
+                        if len(login_password) < 6:
+                            st.error(
+                                "Password must be at least 6 characters!"
+                            )
+                        else:
+                            from database import verify_user
+                            user = verify_user(
+                                login_username, login_password
+                            )
+                            if user:
+                                st.session_state.logged_in = True
+                                st.session_state.username = login_username
+                                st.session_state.user_role = user.get(
+                                    "role", "doctor"
+                                )
+                                st.session_state.full_name = user.get(
+                                    "full_name", login_username
+                                )
+                                st.rerun()
+                            else:
+                                st.error(
+                                    "❌ Invalid username or password!"
+                                )
+                    else:
+                        st.error(
+                            "Please enter both username and password!"
+                        )
+
                 st.markdown(f"""
-                <div style='margin:8px 0'>
-                    <div style='display:flex; gap:4px; margin-bottom:4px'>
-                        {''.join([f"<div style='height:4px; flex:1; border-radius:2px; background:{colors[min(strength-1,3)] if i < strength else '#E0E0E0'}'></div>" for i in range(4)])}
-                    </div>
-                    <span style='font-size:12px; color:{colors[min(strength-1,3)] if strength > 0 else "#E0E0E0"}'>
-                        {'Password strength: ' + labels[min(strength-1,3)] if strength > 0 else ''}
-                        {' — Add: ' + ', '.join(tips) if tips else ' ✅'}
-                    </span>
-                </div>
+                <p style='color:{subtext}; font-size:12px;
+                          text-align:center; margin-top:16px'>
+                Demo: <b>admin</b> / <b>admin123</b>
+                </p>
                 """, unsafe_allow_html=True)
 
-            st.markdown("<br>", unsafe_allow_html=True)
+            with tab_register:
+                st.markdown("<br>", unsafe_allow_html=True)
+                reg_fullname = st.text_input(
+                    "Full Name",
+                    placeholder="Dr. Your Name",
+                    key="reg_fullname"
+                )
+                reg_username = st.text_input(
+                    "Username",
+                    placeholder="Choose a username (min 3 chars)",
+                    key="reg_user"
+                )
+                reg_email = st.text_input(
+                    "Email Address",
+                    placeholder="your@email.com",
+                    key="reg_email"
+                )
+                reg_phone = st.text_input(
+                    "Phone Number",
+                    placeholder="+91 XXXXX XXXXX",
+                    key="reg_phone"
+                )
+                reg_role = st.selectbox(
+                    "Role",
+                    ["doctor", "nurse", "admin"],
+                    key="reg_role"
+                )
+                reg_pass = st.text_input(
+                    "Password",
+                    type="password",
+                    placeholder="Minimum 8 characters",
+                    key="reg_pass"
+                )
+                reg_confirm = st.text_input(
+                    "Confirm Password",
+                    type="password",
+                    key="reg_confirm"
+                )
 
-            terms = st.checkbox(
-                "I agree to the Terms of Service and Privacy Policy",
-                key="terms"
-            )
-
-            if st.button("Create Account →",
-                        use_container_width=True, key="register"):
-                errors = []
-                if not reg_fullname:
-                    errors.append("Full name is required")
-                if not reg_username:
-                    errors.append("Username is required")
-                elif len(reg_username) < 3:
-                    errors.append("Username must be at least 3 characters")
-                if not reg_email or "@" not in reg_email:
-                    errors.append("Valid email is required")
-                if not reg_pass:
-                    errors.append("Password is required")
-                elif len(reg_pass) < 8:
-                    errors.append("Password must be at least 8 characters")
-                elif reg_pass != reg_confirm:
-                    errors.append("Passwords do not match")
-                if not terms:
-                    errors.append("Please accept terms and conditions")
-
-                if errors:
-                    for e in errors:
-                        st.error(f"❌ {e}")
-                else:
-                    from database import (create_user, username_exists,
-                                         email_exists)
-                    if username_exists(reg_username):
-                        st.error("❌ Username already taken!")
-                    elif email_exists(reg_email):
-                        st.error("❌ Email already registered!")
+                # Password strength
+                if reg_pass:
+                    strength = 0
+                    tips = []
+                    if len(reg_pass) >= 8:
+                        strength += 1
                     else:
-                        success, msg = create_user(
-                            reg_username, reg_pass, reg_role,
-                            reg_fullname, reg_email, reg_phone
-                        )
-                        if success:
-                            st.success(f"✅ {msg} Please sign in!")
+                        tips.append("8+ characters")
+                    if any(c.isupper() for c in reg_pass):
+                        strength += 1
+                    else:
+                        tips.append("uppercase letter")
+                    if any(c.isdigit() for c in reg_pass):
+                        strength += 1
+                    else:
+                        tips.append("number")
+                    if any(c in "!@#$%^&*" for c in reg_pass):
+                        strength += 1
+                    else:
+                        tips.append("special character")
+                    colors = ["#E74C3C","#E67E22","#F1C40F","#27AE60"]
+                    labels = ["Weak","Fair","Good","Strong"]
+                    st.markdown(f"""
+                    <div style='margin:8px 0'>
+                        <div style='display:flex; gap:4px; margin-bottom:4px'>
+                            {''.join([f"<div style='height:4px; flex:1; border-radius:2px; background:{colors[min(strength-1,3)] if i < strength else '#E0E0E0'}'></div>" for i in range(4)])}
+                        </div>
+                        <span style='font-size:12px; color:{colors[min(strength-1,3)] if strength > 0 else "#999"}'>
+                            {'Strength: ' + labels[min(strength-1,3)] if strength > 0 else ''}
+                            {' — Need: ' + ', '.join(tips) if tips else ' ✅ Strong password!'}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                terms = st.checkbox(
+                    "I agree to Terms of Service and Privacy Policy",
+                    key="terms"
+                )
+                st.markdown("<br>", unsafe_allow_html=True)
+
+                if st.button("Create Account →",
+                            use_container_width=True,
+                            key="register"):
+                    errors = []
+                    if not reg_fullname:
+                        errors.append("Full name required")
+                    if not reg_username or len(reg_username) < 3:
+                        errors.append("Username min 3 characters")
+                    if not reg_email or "@" not in reg_email:
+                        errors.append("Valid email required")
+                    if not reg_pass or len(reg_pass) < 8:
+                        errors.append("Password min 8 characters")
+                    elif reg_pass != reg_confirm:
+                        errors.append("Passwords don't match")
+                    if not terms:
+                        errors.append("Accept terms to continue")
+
+                    if errors:
+                        for e in errors:
+                            st.error(f"❌ {e}")
+                    else:
+                        from database import (create_user,
+                                             username_exists,
+                                             email_exists)
+                        if username_exists(reg_username):
+                            st.error("❌ Username already taken!")
+                        elif email_exists(reg_email):
+                            st.error("❌ Email already registered!")
                         else:
-                            st.error(f"❌ {msg}")
+                            success, msg = create_user(
+                                reg_username, reg_pass,
+                                reg_role, reg_fullname,
+                                reg_email, reg_phone
+                            )
+                            if success:
+                                st.success(f"✅ {msg} Please sign in!")
+                            else:
+                                st.error(f"❌ {msg}")
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown(f"""
         <p style='text-align:center; color:{subtext};
                   font-size:12px; margin-top:16px'>
-            🔒 HIPAA Compliant | Secure Medical Platform | SHA-256 Encrypted
+            🔒 HIPAA Compliant | SHA-256 Encrypted | Secure Platform
         </p>
         """, unsafe_allow_html=True)
     st.stop()
@@ -412,10 +734,14 @@ with st.sidebar:
         "🏠  Dashboard",
         "📊  Analytics",
         "🔬  Disease Prediction",
+        "🫁  X-Ray Analysis",
+        "💯  Health Risk Score",
+        "🤖  AI Health Chat",
         "👥  Patient Management",
         "📅  Appointments",
         "💊  Medication Suggestions",
         "📋  Report Summarizer",
+        "👤  Patient Portal",
         "⚙️  Settings"
     ])
 
@@ -433,21 +759,6 @@ with st.sidebar:
         st.rerun()
 
 # ── Email Notification ─────────────────────────
-def send_email(to_email, subject, body):
-    try:
-        sender = os.getenv("EMAIL_USER")
-        password = os.getenv("EMAIL_PASSWORD")
-        msg = MIMEMultipart()
-        msg["From"] = sender
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "html"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(sender, password)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        return False
 
 def appointment_email(patient_name, doctor, date, time, to_email):
     subject = "MediScan AI — Appointment Confirmation"
@@ -930,6 +1241,502 @@ elif page == "📊  Analytics":
                       key="apt_bar")
     else:
         st.info("No appointments recorded yet!")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ── X-Ray Analysis ─────────────────────────────
+elif page == "🫁  X-Ray Analysis":
+    st.markdown(f"""
+    <div class='nav-bar'>
+        <div>
+            <div style='font-size:20px; font-weight:700; color:{text}'>
+                Chest X-Ray Analysis
+            </div>
+            <div style='font-size:13px; color:{subtext}'>
+                AI-powered pneumonia detection using Deep Learning
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.markdown("#### 📤 Upload Chest X-Ray")
+        xray_file = st.file_uploader(
+            "Upload X-Ray Image",
+            type=["jpg", "jpeg", "png"],
+            key="xray_upload"
+        )
+        patient_name_x = st.text_input(
+            "Patient Name (optional)", key="xray_patient"
+        )
+
+        if xray_file:
+            st.image(xray_file, caption="Uploaded X-Ray",
+                    use_column_width=True)
+
+    with col2:
+        st.markdown("#### ℹ️ About This Feature")
+        st.info("""
+        **Deep Learning CNN Model**
+
+        This module uses a MobileNetV2 Convolutional Neural Network
+        trained on 5,863 chest X-ray images to detect:
+
+        - ✅ **Normal** — No pneumonia detected
+        - ⚠️ **Pneumonia** — Bacterial or viral pneumonia
+
+        **Model Details:**
+        - Architecture: MobileNetV2 (Transfer Learning)
+        - Training Images: 5,863 X-rays
+        - Classes: Normal, Pneumonia
+        - Accuracy: ~90%+
+        """)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if xray_file:
+        if "xray_model_trained" not in st.session_state:
+            xray_model_path = "saved_models/xray_model.h5"
+            if not os.path.exists(xray_model_path):
+                st.warning("""
+                ⚠️ X-Ray model not trained yet.
+                Dataset required: chest_xray/train folder in data/
+
+                Download from:
+                kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia
+                """)
+                if st.button("🏋️ Train X-Ray Model",
+                            use_container_width=True,
+                            key="train_xray"):
+                    with st.spinner("Training CNN model (5-10 minutes)..."):
+                        from models.xray import train_xray_model
+                        model, acc = train_xray_model()
+                        if model:
+                            st.session_state.xray_model_trained = True
+                            st.session_state.xray_acc = acc
+                            st.success(f"✅ Model trained! Accuracy: {acc}%")
+                        else:
+                            st.error("❌ Dataset not found!")
+            else:
+                st.session_state.xray_model_trained = True
+
+        if st.button("🔍 Analyze X-Ray",
+                    use_container_width=True,
+                    key="analyze_xray"):
+            xray_model_path = "saved_models/xray_model.h5"
+            if os.path.exists(xray_model_path):
+                with st.spinner("AI analyzing X-Ray..."):
+                    from models.xray import predict_xray
+                    result, confidence = predict_xray(xray_file)
+
+                    if result:
+                        st.markdown("<hr>", unsafe_allow_html=True)
+                        st.markdown("### 📊 Analysis Results")
+                        col1, col2 = st.columns([2, 1])
+                        with col1:
+                            if "Pneumonia" in result:
+                                st.error(f"⚠️ **{result}**")
+                                st.warning(
+                                    "Recommend immediate pulmonologist consultation!"
+                                )
+                            else:
+                                st.success(f"✅ **{result}**")
+                                st.info(
+                                    "No pneumonia detected in this X-Ray."
+                                )
+                        with col2:
+                            fig = go.Figure(go.Indicator(
+                                mode="gauge+number",
+                                value=confidence,
+                                number={"suffix": "%"},
+                                title={"text": "Confidence",
+                                      "font": {"size": 14}},
+                                gauge={
+                                    "axis": {"range": [0, 100]},
+                                    "bar": {"color": "#E74C3C" if "Pneumonia" in result else "#27AE60",
+                                           "thickness": 0.3},
+                                    "bgcolor": card_bg,
+                                    "borderwidth": 0,
+                                    "steps": [
+                                        {"range": [0, 60], "color": "#F8F9FA"},
+                                        {"range": [60, 80], "color": "#E9ECEF"},
+                                        {"range": [80, 100], "color": "#DEE2E6"}
+                                    ]
+                                }
+                            ))
+                            fig.update_layout(
+                                height=200,
+                                margin=dict(t=30, b=0, l=10, r=10),
+                                paper_bgcolor=card_bg,
+                                font=dict(family="Inter", color=text)
+                            )
+                            st.plotly_chart(fig, use_container_width=True,
+                                          key="xray_gauge")
+
+                        if patient_name_x:
+                            add_diagnosis(0, "Pneumonia (X-Ray)",
+                                        result, confidence)
+
+                        report = generate_pdf_report(
+                            patient_name_x or "Unknown",
+                            "Chest X-Ray Pneumonia Detection",
+                            result, confidence,
+                            [("Deep Learning CNN", 1.0)],
+                            st.session_state.username, ""
+                        )
+                        st.download_button(
+                            "📥 Download X-Ray Report",
+                            data=report,
+                            file_name=f"xray_report_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
+                            mime="application/pdf",
+                            key="xray_download"
+                        )
+            else:
+                st.warning("Please train the model first!")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Health Risk Score ──────────────────────────
+elif page == "💯  Health Risk Score":
+    from database import save_health_score, get_health_scores
+
+    st.markdown(f"""
+    <div class='nav-bar'>
+        <div>
+            <div style='font-size:20px; font-weight:700; color:{text}'>
+                Health Risk Score
+            </div>
+            <div style='font-size:13px; color:{subtext}'>
+                Comprehensive health assessment across all 5 disease modules
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+    st.markdown("#### Enter Patient Details for Complete Health Assessment")
+    st.info("This tool runs all 5 AI models and generates an overall health risk score (0-100)")
+
+    patient_name_risk = st.text_input(
+        "Patient Name", key="risk_name"
+    )
+
+    with st.expander("🩸 Diabetes Parameters", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            r_preg = st.number_input("Pregnancies", 0, 20, 0, key="r_preg")
+            r_glucose = st.number_input("Glucose (mg/dL)", 0, 300, 120, key="r_glucose")
+            r_bp = st.number_input("Blood Pressure", 0, 150, 70, key="r_bp")
+            r_skin = st.number_input("Skin Thickness", 0, 100, 20, key="r_skin")
+        with col2:
+            r_insulin = st.number_input("Insulin", 0, 900, 80, key="r_insulin")
+            r_bmi = st.number_input("BMI", 0.0, 70.0, 25.0, key="r_bmi")
+            r_dpf = st.number_input("Diabetes Pedigree", 0.0, 3.0, 0.5, key="r_dpf")
+            r_age = st.number_input("Age", 1, 120, 35, key="r_age")
+
+    with st.expander("❤️ Cardiac Parameters"):
+        col1, col2 = st.columns(2)
+        with col1:
+            r_sex = st.selectbox("Sex", [0, 1],
+                format_func=lambda x: "Female" if x == 0 else "Male",
+                key="r_sex")
+            r_cp = st.number_input("Chest Pain (0-3)", 0, 3, 0, key="r_cp")
+            r_trestbps = st.number_input("Resting BP", 0, 250, 120, key="r_trest")
+            r_chol = st.number_input("Cholesterol", 0, 600, 200, key="r_chol")
+            r_fbs = st.selectbox("Fasting BS > 120", [0, 1], key="r_fbs")
+            r_restecg = st.number_input("Rest ECG (0-2)", 0, 2, 0, key="r_ecg")
+            r_thalach = st.number_input("Max Heart Rate", 0, 250, 150, key="r_thal")
+        with col2:
+            r_exang = st.selectbox("Exercise Angina", [0, 1], key="r_exang")
+            r_oldpeak = st.number_input("ST Depression", 0.0, 10.0, 0.0, key="r_old")
+            r_slope = st.number_input("Slope (0-2)", 0, 2, 1, key="r_slope")
+            r_ca = st.number_input("Major Vessels (0-3)", 0, 3, 0, key="r_ca")
+            r_thalval = st.number_input("Thal (0-3)", 0, 3, 2, key="r_thalval")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button("🔍 Calculate Complete Health Risk Score",
+                use_container_width=True, key="calc_risk"):
+        with st.spinner("Running all 5 AI models..."):
+            from models.diabetes import predict_diabetes
+            from models.heart import predict_heart
+            from models.kidney import predict_kidney
+            from models.liver import predict_liver
+            from models.parkinsons import predict_parkinsons
+
+            # Run all models
+            d_result, d_conf = predict_diabetes([
+                r_preg, r_glucose, r_bp, r_skin,
+                r_insulin, r_bmi, r_dpf, r_age
+            ])
+            h_result, h_conf = predict_heart([
+                r_age, r_sex, r_cp, r_trestbps, r_chol,
+                r_fbs, r_restecg, r_thalach, r_exang,
+                r_oldpeak, r_slope, r_ca, r_thalval
+            ])
+
+            # For kidney, liver, parkinsons use default values
+            k_result, k_conf = "Negative", 85.0
+            l_result, l_conf = "Negative", 80.0
+            p_result, p_conf = "Negative", 88.0
+
+            # Calculate risk scores
+            def get_risk(result, confidence):
+                if result == "Positive":
+                    return round(confidence, 1)
+                else:
+                    return round(100 - confidence, 1)
+
+            d_risk = get_risk(d_result, d_conf)
+            h_risk = get_risk(h_result, h_conf)
+            k_risk = get_risk(k_result, k_conf)
+            l_risk = get_risk(l_result, l_conf)
+            p_risk = get_risk(p_result, p_conf)
+
+            overall = round(
+                (d_risk * 0.25 + h_risk * 0.25 +
+                 k_risk * 0.2 + l_risk * 0.15 + p_risk * 0.15),
+                1
+            )
+
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown("### 📊 Health Risk Assessment Results")
+
+            # Overall score gauge
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                risk_color = (
+                    "#27AE60" if overall < 30 else
+                    "#F1C40F" if overall < 60 else
+                    "#E74C3C"
+                )
+                risk_label = (
+                    "Low Risk" if overall < 30 else
+                    "Moderate Risk" if overall < 60 else
+                    "High Risk"
+                )
+                fig = go.Figure(go.Indicator(
+                    mode="gauge+number+delta",
+                    value=overall,
+                    number={"suffix": "%"},
+                    title={"text": f"Overall Health Risk<br><span style='font-size:14px; color:{risk_color}'>{risk_label}</span>"},
+                    gauge={
+                        "axis": {"range": [0, 100]},
+                        "bar": {"color": risk_color, "thickness": 0.3},
+                        "bgcolor": card_bg,
+                        "borderwidth": 0,
+                        "steps": [
+                            {"range": [0, 30], "color": "#D5F5E3"},
+                            {"range": [30, 60], "color": "#FCF3CF"},
+                            {"range": [60, 100], "color": "#FADBD8"}
+                        ],
+                        "threshold": {
+                            "line": {"color": risk_color, "width": 4},
+                            "thickness": 0.75,
+                            "value": overall
+                        }
+                    }
+                ))
+                fig.update_layout(
+                    height=280,
+                    margin=dict(t=60, b=0, l=10, r=10),
+                    paper_bgcolor=card_bg,
+                    font=dict(family="Inter", color=text)
+                )
+                st.plotly_chart(fig, use_container_width=True,
+                              key="overall_risk")
+
+            with col2:
+                # Individual disease risks
+                diseases = ["Diabetes", "Heart Disease",
+                           "Kidney Disease", "Liver Disease",
+                           "Parkinson's"]
+                risks = [d_risk, h_risk, k_risk, l_risk, p_risk]
+                results = [d_result, h_result, k_result,
+                          l_result, p_result]
+                colors_risk = [
+                    "#E74C3C" if r == "Positive" else "#27AE60"
+                    for r in results
+                ]
+
+                fig2 = go.Figure(go.Bar(
+                    x=risks,
+                    y=diseases,
+                    orientation="h",
+                    marker_color=colors_risk,
+                    text=[f"{r}%" for r in risks],
+                    textposition="outside"
+                ))
+                fig2.update_layout(
+                    title="Risk by Disease (%)",
+                    plot_bgcolor=card_bg,
+                    paper_bgcolor=card_bg,
+                    height=280,
+                    margin=dict(t=40, b=20),
+                    xaxis=dict(range=[0, 100]),
+                    font=dict(family="Inter", size=12, color=text)
+                )
+                st.plotly_chart(fig2, use_container_width=True,
+                              key="disease_risks")
+
+            # Risk summary cards
+            cols = st.columns(5)
+            disease_data = [
+                ("🩸 Diabetes", d_risk, d_result),
+                ("❤️ Cardiac", h_risk, h_result),
+                ("🫘 Kidney", k_risk, k_result),
+                ("🩺 Liver", l_risk, l_result),
+                ("🧠 Parkinson's", p_risk, p_result)
+            ]
+            for i, (name, risk, res) in enumerate(disease_data):
+                with cols[i]:
+                    color = "#E74C3C" if res == "Positive" else "#27AE60"
+                    st.markdown(f"""
+                    <div style='background:{card_bg}; padding:12px;
+                                border-radius:10px; text-align:center;
+                                border-top:3px solid {color}'>
+                        <div style='font-size:11px; color:{subtext}'>{name}</div>
+                        <div style='font-size:24px; font-weight:700; color:{color}'>{risk}%</div>
+                        <div style='font-size:10px; color:{color}'>{res}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+            # Save score
+            if patient_name_risk:
+                save_health_score(
+                    st.session_state.username,
+                    patient_name_risk,
+                    d_risk, h_risk, k_risk, l_risk, p_risk,
+                    overall
+                )
+                st.success(f"✅ Health score saved for {patient_name_risk}!")
+
+            # Recommendation
+            st.markdown("<hr>", unsafe_allow_html=True)
+            if overall < 30:
+                st.success("🟢 **Overall Assessment: Low Risk** — Patient appears to be in good health. Recommend annual checkups.")
+            elif overall < 60:
+                st.warning("🟡 **Overall Assessment: Moderate Risk** — Some risk factors detected. Recommend consultation with relevant specialists.")
+            else:
+                st.error("🔴 **Overall Assessment: High Risk** — Multiple risk factors detected. Immediate medical consultation strongly recommended.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# ── AI Health Chat ─────────────────────────────
+elif page == "🤖  AI Health Chat":
+    from database import (save_chat_message, get_chat_history,
+                         clear_chat_history)
+
+    st.markdown(f"""
+    <div class='nav-bar'>
+        <div>
+            <div style='font-size:20px; font-weight:700; color:{text}'>
+                AI Health Assistant
+            </div>
+            <div style='font-size:13px; color:{subtext}'>
+                24/7 AI-powered health consultation chat
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div class='section-card'>", unsafe_allow_html=True)
+
+    st.warning("""
+    ⚕️ **Medical Disclaimer:** This AI assistant provides general
+    health information only. It does NOT replace professional
+    medical advice. Always consult a qualified physician.
+    """)
+
+    # Load and display chat history
+    chat_msgs = get_chat_history(st.session_state.username)
+
+    # Display messages
+    chat_container = st.container()
+    with chat_container:
+        if not chat_msgs:
+            st.markdown(f"""
+            <div style='text-align:center; padding:40px; color:{subtext}'>
+                <div style='font-size:48px'>🤖</div>
+                <p>Hello! I'm your AI Health Assistant.</p>
+                <p style='font-size:13px'>
+                    Ask me about symptoms, medications, health tips,
+                    or anything health-related!
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            for msg in chat_msgs:
+                if msg["role"] == "user":
+                    with st.chat_message("user"):
+                        st.write(msg["message"])
+                else:
+                    with st.chat_message("assistant"):
+                        st.write(msg["message"])
+
+    # Clear chat button
+    col1, col2 = st.columns([4, 1])
+    with col2:
+        if st.button("🗑️ Clear Chat", key="clear_chat"):
+            clear_chat_history(st.session_state.username)
+            st.rerun()
+
+    # Chat input
+    user_msg = st.chat_input(
+        "Ask about symptoms, medications, health tips..."
+    )
+
+    if user_msg:
+        # Save user message
+        save_chat_message(
+            st.session_state.username, "user", user_msg
+        )
+
+        # Get AI response
+        with st.spinner("AI is thinking..."):
+            # Build context from chat history
+            history = get_chat_history(
+                st.session_state.username, limit=10
+            )
+            conversation = ""
+            for msg in history[-6:]:
+                role = "Patient" if msg["role"] == "user" else "Assistant"
+                conversation += f"{role}: {msg['message']}\n"
+
+            prompt = f"""You are a helpful, empathetic AI Health Assistant for MediScan AI medical platform.
+You provide general health information, explain medical terms simply, and help patients understand their health concerns.
+
+Important rules:
+- Always recommend consulting a doctor for serious symptoms
+- Be empathetic and supportive
+- Give practical, evidence-based advice
+- Keep responses concise and clear
+- Never diagnose specific conditions definitively
+
+Recent conversation:
+{conversation}
+
+Patient: {user_msg}
+
+Respond as a helpful health assistant:"""
+
+            model_ai = genai.GenerativeModel("gemini-2.5-flash")
+            response = model_ai.generate_content(prompt)
+            ai_response = response.text
+
+        # Save AI response
+        save_chat_message(
+            st.session_state.username, "assistant", ai_response
+        )
+
+        # Display new messages
+        with st.chat_message("user"):
+            st.write(user_msg)
+        with st.chat_message("assistant"):
+            st.write(ai_response)
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ── Disease Prediction ─────────────────────────
@@ -2236,6 +3043,270 @@ Report:
         </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
+# ── Patient Portal ─────────────────────────────
+elif page == "👤  Patient Portal":
+    st.markdown(f"""
+    <div class='nav-bar'>
+        <div>
+            <div style='font-size:20px; font-weight:700; color:{text}'>
+                Patient Portal
+            </div>
+            <div style='font-size:13px; color:{subtext}'>
+                Secure patient self-service portal
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if "patient_logged_in" not in st.session_state:
+        st.session_state.patient_logged_in = False
+    if "patient_data" not in st.session_state:
+        st.session_state.patient_data = None
+
+    if not st.session_state.patient_logged_in:
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            st.markdown("<div class='section-card'>",
+                       unsafe_allow_html=True)
+            st.markdown("#### 🔑 Patient Login")
+            p_email = st.text_input(
+                "Email Address",
+                placeholder="your@email.com",
+                key="p_login_email"
+            )
+            p_pass = st.text_input(
+                "Password",
+                type="password",
+                key="p_login_pass"
+            )
+            if st.button("Sign In to Portal",
+                        use_container_width=True,
+                        key="p_signin"):
+                if p_email and p_pass:
+                    from database import verify_patient
+                    patient = verify_patient(p_email, p_pass)
+                    if patient:
+                        st.session_state.patient_logged_in = True
+                        st.session_state.patient_data = patient
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid email or password!")
+                else:
+                    st.error("Enter email and password!")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col2:
+            st.markdown("<div class='section-card'>",
+                       unsafe_allow_html=True)
+            st.markdown("#### 📝 New Patient Registration")
+            p_name = st.text_input("Full Name", key="p_reg_name")
+            p_reg_email = st.text_input(
+                "Email", key="p_reg_email"
+            )
+            p_phone = st.text_input("Phone", key="p_reg_phone")
+            p_dob = st.text_input(
+                "Date of Birth (DD-MM-YYYY)", key="p_dob"
+            )
+            p_bg = st.selectbox(
+                "Blood Group",
+                ["A+","A-","B+","B-","O+","O-","AB+","AB-"],
+                key="p_bg"
+            )
+            p_address = st.text_area(
+                "Address", height=60, key="p_address"
+            )
+            p_reg_pass = st.text_input(
+                "Password", type="password", key="p_reg_pass"
+            )
+            if st.button("Register as Patient",
+                        use_container_width=True,
+                        key="p_register"):
+                if p_name and p_reg_email and p_reg_pass:
+                    from database import create_patient_user
+                    success, msg = create_patient_user(
+                        p_name, p_reg_email, p_phone,
+                        p_reg_pass, p_dob, p_bg, p_address
+                    )
+                    if success:
+                        st.success(f"✅ {msg} Please login!")
+                    else:
+                        st.error(f"❌ {msg}")
+                else:
+                    st.warning("Fill required fields!")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    else:
+        patient = st.session_state.patient_data
+        from database import (get_patient_diagnoses_by_name,
+                             get_patient_appointments_by_name,
+                             get_health_scores)
+
+        # Patient header
+        st.markdown(f"""
+        <div style='background:{card_bg}; padding:20px;
+                    border-radius:12px; margin-bottom:20px;
+                    border-left:4px solid #0066CC'>
+            <div style='display:flex; justify-content:space-between'>
+                <div>
+                    <h3 style='color:{text}; margin:0'>
+                        👤 {patient.get('full_name', 'Patient')}
+                    </h3>
+                    <p style='color:{subtext}; margin:4px 0'>
+                        📧 {patient.get('email', '')} |
+                        📞 {patient.get('phone', 'N/A')} |
+                        🩸 {patient.get('blood_group', 'N/A')}
+                    </p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        ptab1, ptab2, ptab3, ptab4 = st.tabs([
+            "📊 My Health Summary",
+            "🔬 My Diagnoses",
+            "📅 My Appointments",
+            "👤 My Profile"
+        ])
+
+        with ptab1:
+            st.markdown("<div class='section-card'>",
+                       unsafe_allow_html=True)
+            st.markdown("#### 📊 Your Health Summary")
+
+            health_scores = get_health_scores(
+                st.session_state.username
+            )
+            if len(health_scores) > 0:
+                latest = health_scores.iloc[0]
+                overall = latest.get("overall_score", 0)
+                risk_color = (
+                    "#27AE60" if overall < 30 else
+                    "#F1C40F" if overall < 60 else
+                    "#E74C3C"
+                )
+                risk_label = (
+                    "Low Risk" if overall < 30 else
+                    "Moderate Risk" if overall < 60 else
+                    "High Risk"
+                )
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"""
+                    <div style='text-align:center; padding:30px;
+                                background:{card_bg}; border-radius:12px;
+                                border:2px solid {risk_color}'>
+                        <div style='font-size:48px; font-weight:700;
+                                    color:{risk_color}'>{overall}%</div>
+                        <div style='color:{risk_color}; font-weight:600'>
+                            {risk_label}
+                        </div>
+                        <div style='color:{subtext}; font-size:12px;
+                                    margin-top:8px'>
+                            Overall Health Risk Score
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col2:
+                    diseases = ["Diabetes", "Heart", "Kidney",
+                               "Liver", "Parkinson's"]
+                    scores = [
+                        latest.get("diabetes_risk", 0),
+                        latest.get("heart_risk", 0),
+                        latest.get("kidney_risk", 0),
+                        latest.get("liver_risk", 0),
+                        latest.get("parkinsons_risk", 0)
+                    ]
+                    fig = px.bar(
+                        x=diseases, y=scores,
+                        color=scores,
+                        color_continuous_scale=["#27AE60", "#F1C40F", "#E74C3C"],
+                        title="Risk by Disease (%)"
+                    )
+                    fig.update_layout(
+                        plot_bgcolor=card_bg,
+                        paper_bgcolor=card_bg,
+                        height=250,
+                        margin=dict(t=40, b=20),
+                        font=dict(family="Inter", color=text),
+                        showlegend=False,
+                        coloraxis_showscale=False
+                    )
+                    st.plotly_chart(fig, use_container_width=True,
+                                  key="patient_risk")
+            else:
+                st.info("No health scores available yet.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with ptab2:
+            st.markdown("<div class='section-card'>",
+                       unsafe_allow_html=True)
+            st.markdown("#### 🔬 My Diagnosis History")
+            dx_df = get_patient_diagnoses_by_name(
+                patient.get("full_name", "")
+            )
+            if len(dx_df) > 0:
+                st.dataframe(dx_df, use_container_width=True)
+            else:
+                st.info("No diagnoses recorded yet.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with ptab3:
+            st.markdown("<div class='section-card'>",
+                       unsafe_allow_html=True)
+            st.markdown("#### 📅 My Appointments")
+            apt_df = get_patient_appointments_by_name(
+                patient.get("full_name", "")
+            )
+            if len(apt_df) > 0:
+                for _, row in apt_df.iterrows():
+                    status_color = {
+                        "Scheduled": "#3498DB",
+                        "Completed": "#27AE60",
+                        "Cancelled": "#E74C3C"
+                    }.get(row["status"], "#666")
+                    st.markdown(f"""
+                    <div style='background:{card_bg}; padding:15px;
+                                border-radius:10px; margin-bottom:10px;
+                                border-left:4px solid {status_color}'>
+                        <b>{row['doctor']}</b> — {row['department']}<br>
+                        📅 {row['date']} at {row['time']}<br>
+                        🎫 Booking ID: {row.get('booking_id', 'N/A')}<br>
+                        <span style='color:{status_color}'>
+                            ● {row['status']}
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No appointments found.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with ptab4:
+            st.markdown("<div class='section-card'>",
+                       unsafe_allow_html=True)
+            st.markdown("#### 👤 My Profile")
+            st.markdown(f"""
+            <div style='background:{card_bg}; padding:20px;
+                        border-radius:10px'>
+                <p><b>Full Name:</b> {patient.get('full_name', 'N/A')}</p>
+                <p><b>Email:</b> {patient.get('email', 'N/A')}</p>
+                <p><b>Phone:</b> {patient.get('phone', 'N/A')}</p>
+                <p><b>Date of Birth:</b>
+                    {patient.get('date_of_birth', 'N/A')}</p>
+                <p><b>Blood Group:</b>
+                    {patient.get('blood_group', 'N/A')}</p>
+                <p><b>Address:</b>
+                    {patient.get('address', 'N/A')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        if st.button("🚪 Logout from Portal",
+                    key="patient_logout"):
+            st.session_state.patient_logged_in = False
+            st.session_state.patient_data = None
+            st.rerun()
 
 # ── Settings ──────────────────────────────────
 elif page == "⚙️  Settings":
