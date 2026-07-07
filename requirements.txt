@@ -13,3 +13,6 @@ sqlalchemy
 supabase
 fpdf2
 python-docx
+tensorflow
+keras
+opencv-python-headless
