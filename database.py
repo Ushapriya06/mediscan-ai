@@ -269,8 +269,132 @@ def get_dashboard_stats():
         diagnoses.count or 0,
         positive.count or 0,
         appointments.count or 0
-<<<<<<< HEAD
     )
-=======
-    )
->>>>>>> 23bd068ffa5bb41298186b693ea87c851e60d179
+def save_reset_token(email, token):
+    expires = (datetime.now() + timedelta(hours=1)).isoformat()
+    supabase.table("users").update({
+        "reset_token": token,
+        "reset_expires": expires
+    }).eq("email", email).execute()
+
+def verify_reset_token(token):
+    result = supabase.table("users").select("*").eq(
+        "reset_token", token
+    ).execute()
+    if result.data:
+        user = result.data[0]
+        expires = user.get("reset_expires")
+        if expires:
+            from datetime import timezone
+            exp_time = datetime.fromisoformat(
+                expires.replace("Z", "+00:00")
+            )
+            now = datetime.now(timezone.utc)
+            if now < exp_time:
+                return user
+    return None
+
+def reset_password_with_token(token, new_password):
+    hashed = hash_password(new_password)
+    supabase.table("users").update({
+        "password": hashed,
+        "reset_token": None,
+        "reset_expires": None
+    }).eq("reset_token", token).execute()
+
+# ── Patient Portal Functions ───────────────────
+def create_patient_user(full_name, email, phone,
+                        password, dob, blood_group, address):
+    hashed = hash_password(password)
+    try:
+        supabase.table("patient_users").insert({
+            "full_name": full_name,
+            "email": email,
+            "phone": phone,
+            "password": hashed,
+            "date_of_birth": dob,
+            "blood_group": blood_group,
+            "address": address
+        }).execute()
+        return True, "Account created!"
+    except Exception as e:
+        if "duplicate" in str(e).lower():
+            return False, "Email already registered!"
+        return False, "Registration failed!"
+
+def verify_patient(email, password):
+    hashed = hash_password(password)
+    result = supabase.table("patient_users").select("*").eq(
+        "email", email
+    ).eq("password", hashed).execute()
+    return result.data[0] if result.data else None
+
+def get_patient_by_email(email):
+    result = supabase.table("patient_users").select("*").eq(
+        "email", email
+    ).execute()
+    return result.data[0] if result.data else None
+
+def get_patient_diagnoses_by_name(name):
+    result = supabase.table("diagnoses").select("*").ilike(
+        "patient_id::text", "%"
+    ).execute()
+    patients = supabase.table("patients").select("*").ilike(
+        "name", f"%{name}%"
+    ).execute()
+    if patients.data:
+        patient_ids = [p["id"] for p in patients.data]
+        all_dx = []
+        for pid in patient_ids:
+            dx = supabase.table("diagnoses").select("*").eq(
+                "patient_id", pid
+            ).execute()
+            all_dx.extend(dx.data)
+        return pd.DataFrame(all_dx) if all_dx else pd.DataFrame()
+    return pd.DataFrame()
+
+def get_patient_appointments_by_name(name):
+    result = supabase.table("appointments").select("*").ilike(
+        "patient_name", f"%{name}%"
+    ).execute()
+    return pd.DataFrame(result.data) if result.data else pd.DataFrame()
+
+# ── Chat History Functions ─────────────────────
+def save_chat_message(username, role, message):
+    supabase.table("chat_history").insert({
+        "username": username,
+        "role": role,
+        "message": message
+    }).execute()
+
+def get_chat_history(username, limit=20):
+    result = supabase.table("chat_history").select("*").eq(
+        "username", username
+    ).order("created_at", desc=False).limit(limit).execute()
+    return result.data if result.data else []
+
+def clear_chat_history(username):
+    supabase.table("chat_history").delete().eq(
+        "username", username
+    ).execute()
+
+# ── Health Risk Score Functions ────────────────
+def save_health_score(username, patient_name, diabetes_risk,
+                      heart_risk, kidney_risk, liver_risk,
+                      parkinsons_risk, overall_score):
+    supabase.table("health_scores").insert({
+        "username": username,
+        "patient_name": patient_name,
+        "diabetes_risk": diabetes_risk,
+        "heart_risk": heart_risk,
+        "kidney_risk": kidney_risk,
+        "liver_risk": liver_risk,
+        "parkinsons_risk": parkinsons_risk,
+        "overall_score": overall_score
+    }).execute()
+
+def get_health_scores(username):
+    result = supabase.table("health_scores").select("*").eq(
+        "username", username
+    ).order("created_at", desc=True).limit(10).execute()
+    return pd.DataFrame(result.data) if result.data else pd.DataFrame()
