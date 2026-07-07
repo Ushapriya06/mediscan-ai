@@ -269,4 +269,8 @@ def get_dashboard_stats():
         diagnoses.count or 0,
         positive.count or 0,
         appointments.count or 0
+<<<<<<< HEAD
     )
+=======
+    )
+>>>>>>> 23bd068ffa5bb41298186b693ea87c851e60d179
